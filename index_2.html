@@ -1,0 +1,1665 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0E5C3F">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="フェアウェイ手帳">
+<meta name="format-detection" content="telephone=no">
+<meta name="referrer" content="no-referrer">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230E5C3F'/%3E%3Cpath d='M11 27V5l14 4.7L11 14' fill='%23FBFAF7'/%3E%3C/svg%3E">
+<style>html{-webkit-text-size-adjust:100%}body{margin:0}</style>
+</head>
+<body>
+<title>フェアウェイ手帳</title>
+<style>
+:root{
+  color-scheme: light;
+  --paper:#F2F1EC; --surface:#FBFAF7; --surface-2:#EDECE4;
+  --ink:#14201A; --ink-2:#4F5A53; --muted:#7E8882;
+  --line:#DCDBD1; --grid:#E5E4DC;
+  --accent:#0E5C3F; --accent-soft:#E2EDE6; --on-accent:#FBFAF7;
+  --s1:#2a78d6; --s2:#eb6834; --s3:#1baf7a;
+  --o1:#86b6ef; --o2:#5598e7; --o3:#2a78d6; --o4:#1c5cab; --o5:#0d366b;
+  --good:#0ca30c; --warn:#fab219; --serious:#ec835a; --crit:#d03b3b;
+  --ring:rgba(20,32,26,.10);
+  --shadow:0 1px 2px rgba(20,32,26,.06), 0 8px 24px rgba(20,32,26,.05);
+  --sans:system-ui, -apple-system, "Hiragino Kaku Gothic ProN", "Noto Sans JP", "Yu Gothic", Meiryo, sans-serif;
+  --serif:"Hiragino Mincho ProN", "Yu Mincho", "Noto Serif JP", "Source Han Serif JP", serif;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    color-scheme: dark;
+    --paper:#0E110F; --surface:#191D1A; --surface-2:#232823;
+    --ink:#EFF3F0; --ink-2:#B4BEB8; --muted:#8A948E;
+    --line:#2C332E; --grid:#272D29;
+    --accent:#4FB287; --accent-soft:#17251F; --on-accent:#0B0F0C;
+    --s1:#3987e5; --s2:#d95926; --s3:#199e70;
+    --o1:#9ec5f4; --o2:#6da7ec; --o3:#3987e5; --o4:#256abf; --o5:#184f95;
+    --ring:rgba(255,255,255,.12);
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.3);
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme: dark;
+  --paper:#0E110F; --surface:#191D1A; --surface-2:#232823;
+  --ink:#EFF3F0; --ink-2:#B4BEB8; --muted:#8A948E;
+  --line:#2C332E; --grid:#272D29;
+  --accent:#4FB287; --accent-soft:#17251F; --on-accent:#0B0F0C;
+  --s1:#3987e5; --s2:#d95926; --s3:#199e70;
+  --o1:#9ec5f4; --o2:#6da7ec; --o3:#3987e5; --o4:#256abf; --o5:#184f95;
+  --ring:rgba(255,255,255,.12);
+  --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.3);
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--sans);font-size:16px;line-height:1.7;-webkit-text-size-adjust:100%}
+h1,h2,h3{font-family:var(--serif);font-weight:700;text-wrap:balance;margin:0;line-height:1.35}
+button,input,select,textarea{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:4px}
+.app{max-width:1120px;margin:0 auto;padding:0 16px 120px}
+
+/* ---- header ---- */
+.topbar{display:flex;align-items:center;gap:12px;padding:18px 0 14px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.mark{width:34px;height:34px;flex:none}
+.brand{font-family:var(--serif);font-size:21px;letter-spacing:.04em}
+.brand small{display:block;font-family:var(--sans);font-size:11px;letter-spacing:.18em;color:var(--muted);font-weight:500}
+.topbar .sp{margin-left:auto}
+.chip-status{font-size:12px;color:var(--muted);display:flex;align-items:center;gap:6px}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--good);flex:none}
+.dot.off{background:var(--muted)}
+
+/* ---- nav ---- */
+nav.tabs{display:flex;gap:2px;position:sticky;top:0;z-index:30;background:var(--paper);padding:8px 0;border-bottom:1px solid var(--line);overflow-x:auto}
+nav.tabs button{flex:1 0 auto;min-height:46px;padding:6px 16px;background:none;border:0;border-radius:8px;color:var(--ink-2);font-weight:500;cursor:pointer;white-space:nowrap}
+nav.tabs button[aria-current="true"]{background:var(--accent);color:var(--on-accent);font-weight:700}
+
+/* ---- generic ---- */
+.card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:18px;box-shadow:var(--shadow)}
+.grid{display:grid;gap:14px}
+.sec{margin-top:26px}
+.sec-h{display:flex;align-items:baseline;gap:12px;margin-bottom:12px;flex-wrap:wrap}
+.sec-h h2{font-size:20px}
+.eyebrow{font-size:11px;letter-spacing:.18em;color:var(--muted);font-weight:700}
+.hint{font-size:13px;color:var(--muted);line-height:1.6}
+.btn{min-height:48px;padding:0 18px;border-radius:10px;border:1px solid var(--line);background:var(--surface-2);color:var(--ink);font-weight:700;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:8px}
+.btn:hover{border-color:var(--accent)}
+.btn.primary{background:var(--accent);color:var(--on-accent);border-color:var(--accent)}
+.btn.ghost{background:none}
+.btn.sm{min-height:38px;padding:0 12px;font-size:14px;font-weight:500}
+.btn.danger{color:var(--crit);border-color:var(--line)}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+label.f{display:block;font-size:12px;letter-spacing:.1em;color:var(--muted);font-weight:700;margin-bottom:6px}
+input[type=text],input[type=date],input[type=number],select,textarea{width:100%;min-height:48px;padding:8px 12px;border:1px solid var(--line);border-radius:10px;background:var(--surface);color:var(--ink)}
+textarea{min-height:80px;line-height:1.6}
+table{width:100%;border-collapse:collapse;font-size:14px;font-variant-numeric:tabular-nums}
+th,td{padding:8px 10px;text-align:right;border-bottom:1px solid var(--grid);white-space:nowrap}
+th:first-child,td:first-child{text-align:left}
+thead th{font-size:11px;letter-spacing:.08em;color:var(--muted);border-bottom:1px solid var(--line)}
+tbody tr:hover{background:var(--surface-2)}
+.scroll-x{overflow-x:auto;-webkit-overflow-scrolling:touch}
+.badge{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:700;padding:2px 8px;border-radius:999px;background:var(--surface-2);border:1px solid var(--line)}
+.badge.crit{color:var(--crit)} .badge.warn{color:var(--serious)} .badge.ok{color:var(--good)}
+.empty{text-align:center;padding:40px 16px;color:var(--muted)}
+
+/* ---- KPI ---- */
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}
+.kpi{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px 16px}
+.kpi .k{font-size:11px;letter-spacing:.12em;color:var(--muted);font-weight:700}
+.kpi .v{font-family:var(--serif);font-size:34px;line-height:1.15;font-variant-numeric:tabular-nums}
+.kpi .v span{font-family:var(--sans);font-size:13px;color:var(--muted);font-weight:500;margin-left:3px}
+.kpi .m{font-size:12px;color:var(--ink-2)}
+.meter{height:5px;border-radius:3px;background:var(--surface-2);margin-top:8px;overflow:hidden}
+.meter i{display:block;height:100%;background:var(--accent)}
+
+/* ---- hole entry ---- */
+.holehead{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.holeno{font-family:var(--serif);font-size:44px;line-height:1;font-variant-numeric:tabular-nums}
+.holeno small{font-family:var(--sans);font-size:13px;color:var(--muted);margin-left:8px;font-weight:700}
+.stepper{display:flex;align-items:center;gap:10px}
+.stepper button{width:54px;height:54px;border-radius:12px;border:1px solid var(--line);background:var(--surface-2);font-size:24px;font-weight:700;cursor:pointer;line-height:1}
+.stepper .val{font-family:var(--serif);font-size:38px;min-width:56px;text-align:center;font-variant-numeric:tabular-nums}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chips button{min-height:42px;padding:0 14px;border-radius:999px;border:1px solid var(--line);background:var(--surface);cursor:pointer;font-size:15px}
+.chips button[aria-pressed="true"]{background:var(--accent);color:var(--on-accent);border-color:var(--accent);font-weight:700}
+.shotlist{display:flex;flex-wrap:wrap;gap:6px;min-height:44px;align-items:center;padding:6px;border:1px dashed var(--line);border-radius:10px}
+.shotlist span{background:var(--accent-soft);color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:4px 8px;font-size:14px;display:inline-flex;gap:6px;align-items:center}
+.shotlist span b{font-family:var(--serif);color:var(--muted);font-size:12px}
+.shotlist button{background:none;border:0;color:var(--muted);cursor:pointer;font-size:16px;line-height:1;padding:0 2px}
+.dots{display:flex;gap:3px;flex-wrap:wrap;margin-top:6px}
+.dots i{width:14px;height:5px;border-radius:2px;background:var(--surface-2);display:block}
+.dots i.on{background:var(--accent)}
+.dots i.cur{background:var(--s2)}
+.pill{font-size:12px;padding:3px 10px;border-radius:999px;border:1px solid var(--line);background:var(--surface-2);font-weight:700}
+.pill.on{background:var(--accent-soft);border-color:var(--accent);color:var(--accent)}
+
+/* ---- gps ---- */
+.gpsbig{width:100%;min-height:96px;border-radius:16px;font-family:var(--serif);font-size:24px;font-weight:700;border:1px solid var(--accent);background:var(--accent);color:var(--on-accent);cursor:pointer}
+.gpsbig[data-armed="1"]{background:var(--s2);border-color:var(--s2);color:#fff}
+.gpsbig:disabled{opacity:.55;cursor:progress}
+.readout{font-family:var(--serif);font-size:56px;line-height:1;font-variant-numeric:tabular-nums}
+.readout span{font-family:var(--sans);font-size:16px;color:var(--muted);margin-left:6px}
+.readout b{font-weight:inherit;color:var(--ink)}
+
+/* ---- charts ---- */
+.chartwrap{overflow-x:auto}
+svg.chart{display:block;width:100%;height:auto;font-family:var(--sans)}
+svg.chart .grid-l{stroke:var(--grid);stroke-width:1}
+svg.chart .axis{stroke:var(--line);stroke-width:1}
+svg.chart .lbl{fill:var(--muted);font-size:11px}
+svg.chart .val{fill:var(--ink-2);font-size:12px;font-weight:700;font-variant-numeric:tabular-nums}
+svg.chart .line{fill:none;stroke:var(--accent);stroke-width:2;stroke-linejoin:round;stroke-linecap:round}
+svg.chart .pt{fill:var(--accent);stroke:var(--surface);stroke-width:2}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:13px;color:var(--ink-2);margin-bottom:8px}
+.legend i{width:11px;height:11px;border-radius:3px;display:inline-block;margin-right:6px}
+.tip{position:fixed;z-index:80;background:var(--ink);color:var(--paper);font-size:13px;padding:6px 10px;border-radius:8px;pointer-events:none;box-shadow:var(--shadow);max-width:220px}
+
+/* ---- toast / misc ---- */
+#toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:90;display:flex;flex-direction:column;gap:8px;align-items:center;pointer-events:none}
+#toast div{background:var(--ink);color:var(--paper);padding:10px 18px;border-radius:999px;font-size:14px;box-shadow:var(--shadow)}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.note{background:var(--accent-soft);border:1px solid var(--line);border-radius:12px;padding:14px 16px;font-size:14px;line-height:1.75}
+.note b{color:var(--accent)}
+ul.coach{margin:0;padding-left:20px}
+ul.coach li{margin-bottom:6px}
+@media (max-width:640px){
+  .app{padding:0 12px 130px}
+  .two{grid-template-columns:1fr}
+  nav.tabs{position:fixed;left:0;right:0;bottom:0;top:auto;border-top:1px solid var(--line);border-bottom:0;padding:6px 8px calc(6px + env(safe-area-inset-bottom));box-shadow:0 -4px 20px rgba(0,0,0,.08)}
+  nav.tabs button{font-size:13px;padding:6px 8px}
+  .kpi .v{font-size:30px}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+
+<div class="app">
+  <header class="topbar">
+    <svg class="mark" viewBox="0 0 32 32" aria-hidden="true">
+      <path d="M9 29V3l16 5.4L9 13.8" fill="var(--accent)"/>
+      <circle cx="9" cy="29" r="2.6" fill="none" stroke="var(--ink-2)" stroke-width="1.6"/>
+    </svg>
+    <div class="brand">フェアウェイ手帳<small>SCORE ・ CLUB DISTANCE ・ ANALYSIS</small></div>
+    <div class="sp"></div>
+    <div class="chip-status" id="cloudstat"><span class="dot off"></span>読み込み中</div>
+  </header>
+
+  <nav class="tabs" id="tabs">
+    <button data-tab="home" aria-current="true">ホーム</button>
+    <button data-tab="round">スコア入力</button>
+    <button data-tab="gps">飛距離計測</button>
+    <button data-tab="analysis">分析</button>
+    <button data-tab="data">データ</button>
+  </nav>
+
+  <main id="view"></main>
+</div>
+<div id="toast"></div>
+<div id="tip" class="tip" hidden></div>
+
+<script type="application/json" id="cloud-data">/*DATA-START*/null/*DATA-END*/</script>
+<script>
+"use strict";
+var PRISTINE = "<!doctype html>\n" + document.documentElement.outerHTML;
+
+/* ============================ 定数 ============================ */
+var YD = 0.9144; // 1yd = 0.9144m
+var DEFAULT_CLUBS = ["1W","3W","5W","7W","9W","6U","7U","8U","PU","PW","GW","SW"];
+var OLD_DEFAULT_CLUBS = ["1W","3W","5W","7W","U4","U5","6I","7I","8I","9I","PW","AW","SW","PT"];
+var TEE_RESULTS = [
+  {k:"FW", n:"フェアウェイ"},{k:"L", n:"左ラフ"},{k:"R", n:"右ラフ"},
+  {k:"B", n:"バンカー"},{k:"OB", n:"OB"},{k:"P", n:"池・ペナ"},{k:"-", n:"未記録"}
+];
+var TEE_RESULTS_P3 = [
+  {k:"ON", n:"ワンオン"},{k:"S", n:"グリーン手前"},{k:"O", n:"グリーン奥"},
+  {k:"L", n:"左に外す"},{k:"R", n:"右に外す"},
+  {k:"B", n:"バンカー"},{k:"OB", n:"OB"},{k:"P", n:"池・ペナ"},{k:"-", n:"未記録"}
+];
+var STORE_KEY = "fairway-notebook-v1";
+
+var SEED_COURSES = [
+  {id:"sobu-north", name:"総武カントリー北コース", loop:2, pars:[4,4,4,3,5,4,3,4,4], yards:[0,0,0,0,0,0,0,0,0]},
+  {id:"std18", name:"標準18ホール", loop:1,
+   pars:[4,4,3,5,4,4,3,4,5,4,4,3,5,4,4,3,4,5],
+   yards:[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]}
+];
+
+/* ============================ 状態 ============================ */
+var state = {
+  settings: {stride: 75, gpsBlocked: false},
+  clubs: DEFAULT_CLUBS.slice(),
+  courses: SEED_COURSES.map(function(c){return JSON.parse(JSON.stringify(c));}),
+  rounds: [],
+  shots: [],
+  ui: {tab:"home", roundId:null, hole:0, gpsClub:"1W", analysisCourse:null}
+};
+var artifactApi = null, downloadsApi = null, dirty = false;
+
+function uid(p){ return (p||"x") + Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
+function clone(o){ return JSON.parse(JSON.stringify(o)); }
+
+/* ---- 保存・読み込み ---- */
+function saveLocal(){
+  try{
+    var d = {settings:state.settings, clubs:state.clubs, courses:state.courses, rounds:state.rounds, shots:state.shots, savedAt:Date.now()};
+    localStorage.setItem(STORE_KEY, JSON.stringify(d));
+  }catch(e){}
+}
+function readCloud(){
+  try{
+    var el = document.getElementById("cloud-data");
+    var txt = el.textContent.replace(/\/\*DATA-(START|END)\*\//g, "").trim();
+    if(!txt || txt === "null") return null;
+    return JSON.parse(txt);
+  }catch(e){ return null; }
+}
+function readLocal(){
+  try{ var t = localStorage.getItem(STORE_KEY); return t ? JSON.parse(t) : null; }catch(e){ return null; }
+}
+function mergeById(a, b){ // 後勝ち：updatedAtが新しい方
+  var map = {};
+  (a||[]).concat(b||[]).forEach(function(r){
+    if(!r || !r.id) return;
+    var cur = map[r.id];
+    if(!cur || (r.updatedAt||0) >= (cur.updatedAt||0)) map[r.id] = r;
+  });
+  return Object.keys(map).map(function(k){return map[k];});
+}
+function bootState(){
+  var cloud = readCloud(), local = readLocal();
+  var base = cloud || {};
+  state.rounds = mergeById(base.rounds, local && local.rounds);
+  state.shots  = mergeById(base.shots,  local && local.shots);
+  var courses  = mergeById(base.courses, local && local.courses);
+  var seedIds = {}; SEED_COURSES.forEach(function(c){seedIds[c.id]=1;});
+  SEED_COURSES.forEach(function(c){ if(!courses.some(function(x){return x.id===c.id;})) courses.push(clone(c)); });
+  state.courses = courses;
+  var st = (local && local.settings) || base.settings || {};
+  state.settings = {stride: st.stride || 75, gpsBlocked: !!st.gpsBlocked};
+  gpsMode = "live";
+  state.clubs = (local && local.clubs) || (base.clubs) || DEFAULT_CLUBS.slice();
+  // 旧初期セットのままなら、新しいクラブセットに置き換える
+  if(state.clubs.join(",") === OLD_DEFAULT_CLUBS.join(",")) state.clubs = DEFAULT_CLUBS.slice();
+  sortRounds();
+}
+
+/* ============================ 計算ロジック ============================ */
+function shots(h){ return (h.score||0) - (h.putts||0); }
+function parOn(h){ if(!h.score) return 0; return shots(h) <= (h.par-2) ? 1 : 0; }
+function bogeyOn(h){ if(!h.score) return 0; return shots(h) <= (h.par-1) ? 1 : 0; }
+function fwAttempt(h){ return h.par >= 4 ? 1 : 0; }
+function fwHit(h){ return (h.par >= 4 && h.tee === "FW") ? 1 : 0; }
+function oneOn(h){ return (h.par === 3 && h.tee === "ON") ? 1 : 0; }
+function scrambled(h){ return (!h.score) ? 0 : (parOn(h)===0 && h.putts===1 ? 1 : 0); }
+function roundTotals(r){
+  var t = {score:0, putts:0, par:0, ob:0, bunker:0, pen:0, fwA:0, fwH:0, pOn:0, bOn:0, holes:0, front:0, back:0, scr:0, scrA:0};
+  r.holes.forEach(function(h, i){
+    if(!h.score) return;
+    t.holes++; t.score += h.score; t.putts += (h.putts||0); t.par += h.par;
+    t.ob += (h.ob||0); t.bunker += (h.bunker||0); t.pen += (h.pen||0);
+    t.fwA += fwAttempt(h); t.fwH += fwHit(h);
+    t.pOn += parOn(h); t.bOn += bogeyOn(h);
+    if(parOn(h)===0){ t.scrA++; t.scr += scrambled(h); }
+    if(i < r.holes.length/2) t.front += h.score; else t.back += h.score;
+  });
+  t.vsPar = t.score - t.par;
+  t.complete = t.holes === r.holes.length;
+  return t;
+}
+function courseOf(r){
+  for(var i=0;i<state.courses.length;i++) if(state.courses[i].id === r.courseId) return state.courses[i];
+  return null;
+}
+function physHole(r, idx){
+  var c = courseOf(r);
+  var n = (c && c.loop > 1) ? c.pars.length : r.holes.length;
+  return (idx % n) + 1;
+}
+
+/* ---- クラブ距離統計 ---- */
+function clubStats(club){
+  var list = state.shots.filter(function(s){ return s.club === club && s.yards > 0 && !s.excluded; })
+                        .sort(function(a,b){ return a.ts - b.ts; });
+  if(!list.length) return null;
+  var v = list.map(function(s){ return s.yards; }).slice().sort(function(a,b){ return a-b; });
+  var n = v.length;
+  var sum = v.reduce(function(a,b){return a+b;},0);
+  var avg = sum/n;
+  var med = n%2 ? v[(n-1)/2] : (v[n/2-1]+v[n/2])/2;
+  var sd = Math.sqrt(v.reduce(function(a,b){ return a + (b-avg)*(b-avg); },0)/n);
+  var recent = list.slice(-5);
+  var rAvg = recent.reduce(function(a,s){return a+s.yards;},0)/recent.length;
+  // IQRで外れ値を除いた「実用平均」
+  var q1 = v[Math.floor(n*0.25)], q3 = v[Math.floor(n*0.75)], iqr = q3-q1;
+  var trimmed = v.filter(function(x){ return x >= q1-1.5*iqr && x <= q3+1.5*iqr; });
+  var tAvg = trimmed.reduce(function(a,b){return a+b;},0)/trimmed.length;
+  return {club:club, n:n, avg:avg, med:med, sd:sd, min:v[0], max:v[n-1], recent:rAvg, useAvg:tAvg, last:list[list.length-1]};
+}
+function allClubStats(){
+  var names = state.clubs.slice();
+  state.shots.forEach(function(s){ if(s.club && names.indexOf(s.club) < 0) names.push(s.club); });
+  return names.filter(function(c){ return c !== "PT"; })
+    .map(clubStats).filter(Boolean)
+    .sort(function(a,b){ return b.useAvg - a.useAvg; });
+}
+
+/* ============================ 汎用UI ============================ */
+function esc(s){ return String(s==null?"":s).replace(/[&<>"']/g, function(c){
+  return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];
+}); }
+function toast(msg){
+  var box = document.getElementById("toast");
+  var d = document.createElement("div"); d.textContent = msg; box.appendChild(d);
+  setTimeout(function(){ d.remove(); }, 2600);
+}
+function fmt(n, d){ return (n==null || isNaN(n)) ? "–" : Number(n).toFixed(d==null?1:d); }
+function pct(a, b){ return b ? Math.round(a/b*100) : null; }
+function weekdayJa(d){
+  var p = String(d||"").split("-");
+  if(p.length !== 3) return "";
+  var dt = new Date(Number(p[0]), Number(p[1])-1, Number(p[2]));
+  if(isNaN(dt.getTime())) return "";
+  return "（"+["日","月","火","水","木","金","土"][dt.getDay()]+"）";
+}
+function today(){ var d = new Date(); return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); }
+function markDirty(){ dirty = true; saveLocal(); paintCloudStatus(); }
+
+/* ============================ チャート ============================ */
+function lineChart(points, opt){
+  opt = opt || {};
+  if(points.length < 2) return '<p class="hint">2ラウンド以上でグラフを表示します。</p>';
+  var W = 720, H = 240, pad = {t:16, r:16, b:34, l:40};
+  var vs = points.map(function(p){ return p.v; });
+  var min = Math.min.apply(null, vs), max = Math.max.apply(null, vs);
+  var span = Math.max(4, max - min); min = min - span*0.18; max = max + span*0.18;
+  var x = function(i){ return pad.l + i*(W-pad.l-pad.r)/(points.length-1); };
+  var y = function(v){ return pad.t + (max-v)/(max-min)*(H-pad.t-pad.b); };
+  var s = '<svg class="chart" viewBox="0 0 '+W+' '+H+'" role="img" aria-label="スコア推移">';
+  var ticks = 4, out = "";
+  for(var i=0;i<=ticks;i++){
+    var v = min + (max-min)*i/ticks, yy = y(v);
+    out += '<line class="grid-l" x1="'+pad.l+'" y1="'+yy.toFixed(1)+'" x2="'+(W-pad.r)+'" y2="'+yy.toFixed(1)+'"/>'
+        +  '<text class="lbl" x="'+(pad.l-8)+'" y="'+(yy+4).toFixed(1)+'" text-anchor="end">'+Math.round(v)+'</text>';
+  }
+  s += out;
+  var d = points.map(function(p,i){ return (i?"L":"M")+x(i).toFixed(1)+" "+y(p.v).toFixed(1); }).join(" ");
+  var area = d + " L"+x(points.length-1).toFixed(1)+" "+(H-pad.b)+" L"+x(0).toFixed(1)+" "+(H-pad.b)+" Z";
+  s += '<path d="'+area+'" fill="var(--accent)" opacity=".10"/>';
+  s += '<path class="line" d="'+d+'"/>';
+  points.forEach(function(p,i){
+    var last = i === points.length-1;
+    s += '<circle class="pt" cx="'+x(i).toFixed(1)+'" cy="'+y(p.v).toFixed(1)+'" r="'+(last?6:4)+'" data-tip="'+esc(p.label+" ／ "+p.v+(opt.unit||""))+'"/>';
+    if(points.length <= 12 || i%Math.ceil(points.length/8)===0 || last)
+      s += '<text class="lbl" x="'+x(i).toFixed(1)+'" y="'+(H-12)+'" text-anchor="middle">'+esc(p.short||p.label)+'</text>';
+  });
+  var lp = points[points.length-1];
+  s += '<text class="val" x="'+(x(points.length-1)-8).toFixed(1)+'" y="'+(y(lp.v)-12).toFixed(1)+'" text-anchor="end">'+lp.v+(opt.unit||"")+'</text>';
+  return s + '</svg>';
+}
+function barsH(items, opt){
+  opt = opt || {};
+  if(!items.length) return '<p class="hint">データがありません。</p>';
+  var rowH = 34, W = 720, padL = 68, padR = 66;
+  var H = items.length*rowH + 12;
+  var max = Math.max.apply(null, items.map(function(i){ return i.v; })) || 1;
+  var s = '<svg class="chart" viewBox="0 0 '+W+' '+H+'" role="img" aria-label="'+esc(opt.aria||"棒グラフ")+'">';
+  items.forEach(function(it, i){
+    var y = i*rowH + 6, w = Math.max(2, (it.v/max)*(W-padL-padR));
+    s += '<text class="lbl" x="'+(padL-10)+'" y="'+(y+18)+'" text-anchor="end" style="font-size:13px;fill:var(--ink-2)">'+esc(it.label)+'</text>';
+    s += '<rect x="'+padL+'" y="'+y+'" width="'+w.toFixed(1)+'" height="22" rx="4" fill="'+(it.color||"var(--s1)")+'" data-tip="'+esc(it.tip||(it.label+" "+it.v))+'"/>';
+    s += '<text class="val" x="'+(padL+w+8).toFixed(1)+'" y="'+(y+17)+'">'+esc(it.vlabel!=null?it.vlabel:it.v)+'</text>';
+  });
+  return s + '</svg>';
+}
+function barsV(items, opt){
+  opt = opt||{};
+  if(!items.length) return '<p class="hint">データがありません。</p>';
+  var W = 720, H = 190, padB = 44, padT = 22, gap = 14;
+  var bw = (W - gap*(items.length+1))/items.length;
+  var max = Math.max.apply(null, items.map(function(i){return i.v;})) || 1;
+  var s = '<svg class="chart" viewBox="0 0 '+W+' '+H+'" role="img" aria-label="'+esc(opt.aria||"棒グラフ")+'">';
+  items.forEach(function(it,i){
+    var x = gap + i*(bw+gap), h = Math.max(2, (it.v/max)*(H-padT-padB)), y = H-padB-h;
+    s += '<rect x="'+x.toFixed(1)+'" y="'+y.toFixed(1)+'" width="'+bw.toFixed(1)+'" height="'+h.toFixed(1)+'" rx="4" fill="'+(it.color||"var(--s1)")+'" data-tip="'+esc(it.tip||(it.label+" "+it.v))+'"/>';
+    s += '<text class="val" x="'+(x+bw/2).toFixed(1)+'" y="'+(y-6).toFixed(1)+'" text-anchor="middle">'+esc(it.vlabel!=null?it.vlabel:it.v)+'</text>';
+    s += '<text class="lbl" x="'+(x+bw/2).toFixed(1)+'" y="'+(H-24)+'" text-anchor="middle">'+esc(it.label)+'</text>';
+    if(it.sub) s += '<text class="lbl" x="'+(x+bw/2).toFixed(1)+'" y="'+(H-8)+'" text-anchor="middle" style="font-size:10px">'+esc(it.sub)+'</text>';
+  });
+  s += '<line class="axis" x1="0" y1="'+(H-padB)+'" x2="'+W+'" y2="'+(H-padB)+'"/>';
+  return s + '</svg>';
+}
+
+/* ============================ 画面：ホーム ============================ */
+function viewHome(){
+  var done = state.rounds.filter(function(r){ return roundTotals(r).holes > 0; });
+  var open = state.rounds.filter(function(r){ var t = roundTotals(r); return t.holes > 0 && !t.complete; });
+  var h = "";
+  if(!state.rounds.length){
+    h += '<div class="card sec" style="text-align:center">'
+      +  '<h2>ようこそ、大森さん</h2>'
+      +  '<p class="hint" style="margin:10px auto 18px;max-width:34em">ホールごとのスコア・パット・使用クラブを記録し、GPSでクラブの飛距離を貯めていきます。データが溜まるほど分析が正確になります。</p>'
+      +  '<button class="btn primary" data-act="new-round">最初のラウンドを入力する</button></div>';
+  }
+  if(open.length){
+    var r = open[0], t = roundTotals(r);
+    h += '<div class="sec"><div class="note"><b>入力中のラウンドがあります</b>　'+esc(r.date)+'／'+esc(r.courseName)+'　'
+      +  t.holes+'ホール記録済み（'+t.score+'打）<div style="margin-top:10px"><button class="btn primary sm" data-act="resume" data-id="'+r.id+'">続きを入力する</button></div></div></div>';
+  }
+  if(done.length){
+    var recent = done.slice(0, 8).map(function(r){ return {r:r, t:roundTotals(r)}; }).filter(function(o){ return o.t.complete; });
+    var agg = aggregate(done.filter(function(r){ return roundTotals(r).complete; }));
+    if(agg){
+      h += '<div class="sec"><div class="sec-h"><span class="eyebrow">SUMMARY</span><h2>これまでの成績</h2></div>' + kpiBlock(agg) + '</div>';
+    }
+    h += '<div class="sec"><div class="sec-h"><span class="eyebrow">HISTORY</span><h2>最近のラウンド</h2></div><div class="card scroll-x"><table><thead><tr>'
+      + '<th>日付</th><th>コース</th><th>スコア</th><th>vs Par</th><th>パット</th><th>FW</th><th>パーオン</th><th>OB</th><th></th></tr></thead><tbody>';
+    state.rounds.slice(0,10).forEach(function(r){
+      var t = roundTotals(r);
+      h += '<tr><td>'+esc(r.date)+'</td><td>'+esc(r.courseName)+'</td>'
+        +  '<td><b>'+(t.holes?t.score:"–")+'</b>'+(t.complete?"":' <span class="hint">('+t.holes+'H)</span>')+'</td>'
+        +  '<td>'+(t.holes?(t.vsPar>=0?"+":"")+t.vsPar:"–")+'</td><td>'+(t.holes?t.putts:"–")+'</td>'
+        +  '<td>'+(t.fwA?pct(t.fwH,t.fwA)+"%":"–")+'</td><td>'+(t.holes?pct(t.pOn,t.holes)+"%":"–")+'</td><td>'+t.ob+'</td>'
+        +  '<td><button class="btn sm ghost" data-act="resume" data-id="'+r.id+'">開く</button></td></tr>';
+    });
+    h += '</tbody></table></div></div>';
+  }
+  var cs = allClubStats();
+  if(cs.length){
+    h += '<div class="sec"><div class="sec-h"><span class="eyebrow">CLUB DISTANCE</span><h2>クラブ別の実測平均</h2>'
+      +  '<span class="hint">計測 '+state.shots.length+' 球</span></div><div class="card"><div class="chartwrap">'
+      + barsH(cs.slice(0,6).map(function(c){
+          return {label:c.club, v:c.useAvg, vlabel:Math.round(c.useAvg)+"y", color:"var(--s1)",
+                  tip:c.club+"：平均"+Math.round(c.useAvg)+"y ／ "+c.n+"球"};
+        }), {aria:"クラブ別平均飛距離"})
+      + '</div><p class="hint" style="margin-top:8px">「飛距離計測」タブで1球ずつ貯めた実測値です。</p></div></div>';
+  }
+  h += '<div class="sec row"><button class="btn primary" data-act="new-round">新しいラウンドを入力</button>'
+    +  '<button class="btn" data-act="go-gps">飛距離を計測する</button></div>';
+  return h;
+}
+function kpiBlock(a){
+  function k(name, val, unit, meta, ratio){
+    return '<div class="kpi"><div class="k">'+name+'</div><div class="v">'+val+(unit?'<span>'+unit+'</span>':'')+'</div>'
+      + (meta?'<div class="m">'+meta+'</div>':'')
+      + (ratio!=null?'<div class="meter"><i style="width:'+Math.min(100,Math.max(3,ratio))+'%"></i></div>':'')+'</div>';
+  }
+  return '<div class="kpis">'
+    + k("平均スコア", fmt(a.avgScore,1), "", "ベスト "+a.best+" ／ ワースト "+a.worst)
+    + k("平均パット", fmt(a.avgPutts,1), "/R", "目標 30 以下", Math.min(100, 30/a.avgPutts*100))
+    + k("FWキープ率", a.fwRate==null?"–":a.fwRate, "%", "目標 70%", a.fwRate/70*100)
+    + k("パーオン率", a.parOnRate+"", "%", "目標 20%", a.parOnRate/20*100)
+    + k("ボギーオン率", a.bogeyOnRate+"", "%", "目標 70%", a.bogeyOnRate/70*100)
+    + k("OB", fmt(a.obPerRound,1), "/R", "目標 1回以下", Math.min(100, 1/Math.max(a.obPerRound,0.01)*100))
+    + '</div>';
+}
+
+/* ============================ 集計 ============================ */
+function aggregate(rounds){
+  if(!rounds.length) return null;
+  var a = {n:rounds.length, score:0, putts:0, par:0, fwA:0, fwH:0, pOn:0, bOn:0, holes:0, ob:0, bunker:0, pen:0,
+           best:Infinity, worst:-Infinity, front:0, back:0, nFB:0, scr:0, scrA:0, dist:{}};
+  rounds.forEach(function(r){
+    var t = roundTotals(r);
+    a.score += t.score; a.putts += t.putts; a.par += t.par; a.holes += t.holes;
+    a.fwA += t.fwA; a.fwH += t.fwH; a.pOn += t.pOn; a.bOn += t.bOn;
+    a.ob += t.ob; a.bunker += t.bunker; a.pen += t.pen;
+    a.scr += t.scr; a.scrA += t.scrA;
+    if(t.complete){
+      a.best = Math.min(a.best, t.score); a.worst = Math.max(a.worst, t.score);
+      a.front += t.front; a.back += t.back; a.nFB++;
+    }
+  });
+  a.avgScore = a.score/a.n; a.avgPutts = a.putts/a.n;
+  a.fwRate = a.fwA ? Math.round(a.fwH/a.fwA*100) : null;
+  a.parOnRate = a.holes ? Math.round(a.pOn/a.holes*100) : 0;
+  a.bogeyOnRate = a.holes ? Math.round(a.bOn/a.holes*100) : 0;
+  a.scrRate = a.scrA ? Math.round(a.scr/a.scrA*100) : null;
+  a.obPerRound = a.ob/a.n; a.penPerRound = (a.pen+a.ob)/a.n;
+  a.avgFront = a.nFB ? a.front/a.nFB : null; a.avgBack = a.nFB ? a.back/a.nFB : null;
+  if(a.best === Infinity){ a.best = "–"; a.worst = "–"; }
+  return a;
+}
+function holeStats(rounds){
+  var m = {};
+  rounds.forEach(function(r){
+    r.holes.forEach(function(h, i){
+      if(!h.score) return;
+      var p = physHole(r, i);
+      var o = m[p] || (m[p] = {hole:p, par:h.par, n:0, score:0, putts:0, fwA:0, fwH:0, pOn:0, bOn:0, ob:0, bunker:0, pen:0, one:0});
+      o.n++; o.score += h.score; o.putts += (h.putts||0);
+      o.fwA += fwAttempt(h); o.fwH += fwHit(h); o.pOn += parOn(h); o.bOn += bogeyOn(h); o.one += oneOn(h);
+      o.ob += (h.ob||0) + (h.tee==="OB"?0:0); o.bunker += (h.bunker||0); o.pen += (h.pen||0);
+    });
+  });
+  return Object.keys(m).map(function(k){
+    var o = m[k];
+    o.avg = o.score/o.n; o.vsPar = o.avg - o.par;
+    o.fwRate = o.fwA ? o.fwH/o.fwA*100 : null;
+    o.oneRate = o.par === 3 ? o.one/o.n*100 : null;
+    o.pOnRate = o.pOn/o.n*100; o.obRate = o.ob/o.n*100; o.bkRate = o.bunker/o.n*100;
+    o.risk = (o.vsPar >= 1.5 || o.obRate >= 5) ? "crit" : (o.vsPar >= 1.0 || o.bkRate >= 10) ? "warn" : "ok";
+    return o;
+  }).sort(function(a,b){ return a.hole - b.hole; });
+}
+function scoreMix(rounds){
+  var m = {b:0, p:0, bo:0, d:0, t:0}, n = 0;
+  rounds.forEach(function(r){ r.holes.forEach(function(h){
+    if(!h.score) return; n++;
+    var d = h.score - h.par;
+    if(d <= -1) m.b++; else if(d === 0) m.p++; else if(d === 1) m.bo++; else if(d === 2) m.d++; else m.t++;
+  }); });
+  return {m:m, n:n};
+}
+function parGroups(rounds){
+  var g = {};
+  rounds.forEach(function(r){ r.holes.forEach(function(h){
+    if(!h.score) return;
+    var o = g[h.par] || (g[h.par] = {par:h.par, n:0, s:0, putts:0, pOn:0, one:0});
+    o.n++; o.s += h.score; o.putts += (h.putts||0); o.pOn += parOn(h); o.one += oneOn(h);
+  }); });
+  return Object.keys(g).map(function(k){ var o=g[k]; o.avg=o.s/o.n; o.vs=o.avg-o.par; o.pOnRate=o.pOn/o.n*100;
+      o.oneRate = o.par === 3 ? o.one/o.n*100 : null; return o; })
+    .sort(function(a,b){ return a.par-b.par; });
+}
+
+/* ============================ 画面：スコア入力 ============================ */
+function sortRounds(){
+  state.rounds.sort(function(x,y){ return (x.date < y.date ? 1 : x.date > y.date ? -1 : 0); });
+}
+function currentRound(){
+  for(var i=0;i<state.rounds.length;i++) if(state.rounds[i].id === state.ui.roundId) return state.rounds[i];
+  return null;
+}
+function newRound(courseId, date){
+  var c = state.courses.filter(function(x){ return x.id === courseId; })[0] || state.courses[0];
+  var pars = [], yards = [];
+  for(var loop=0; loop<(c.loop||1); loop++){
+    c.pars.forEach(function(p, i){ pars.push(p); yards.push((c.yards&&c.yards[i])||0); });
+  }
+  var r = {
+    id: uid("r"), date: (date && /^\d{4}-\d{2}-\d{2}$/.test(date)) ? date : today(),
+    courseId: c.id, courseName: c.name, weather: "", memo: "",
+    holes: pars.map(function(p, i){
+      return {par:p, yard:yards[i], score:0, putts:0, tee:"-", teeClub:"", clubs:[], ob:0, bunker:0, pen:0, note:""};
+    }),
+    updatedAt: Date.now()
+  };
+  state.rounds.unshift(r);
+  sortRounds();
+  state.ui.roundId = r.id; state.ui.hole = 0;
+  markDirty();
+  return r;
+}
+function viewRound(){
+  var r = currentRound();
+  if(!r){
+    var h = '<div class="sec"><div class="sec-h"><span class="eyebrow">NEW ROUND</span><h2>ラウンドを始める</h2></div><div class="card grid">'
+      + '<div><label class="f">プレー日</label><input type="date" id="new-date" value="'+today()+'"></div>'
+      + '<p class="hint" style="margin:-6px 0 0">日付を変えれば、過去にプレーしたラウンドも後からまとめて入力できます。</p>'
+      + '<div><label class="f">コース</label><select id="new-course">'
+      + state.courses.map(function(c){ return '<option value="'+c.id+'">'+esc(c.name)+(c.loop>1?"（"+c.pars.length+"H×"+c.loop+"周）":"（"+c.pars.length+"H）")+'</option>'; }).join("")
+      + '</select></div>'
+      + '<div class="row"><button class="btn primary" data-act="create-round">このコースで開始</button>'
+      + '<button class="btn ghost" data-act="go-data">コースを追加・編集</button></div></div>';
+    if(state.rounds.length){
+      h += '<div class="sec"><div class="sec-h"><span class="eyebrow">EDIT</span><h2>過去のラウンドを開く</h2></div><div class="card grid">'
+        + state.rounds.slice(0,12).map(function(x){
+            var t = roundTotals(x);
+            return '<div class="row" style="justify-content:space-between;border-bottom:1px solid var(--grid);padding-bottom:8px">'
+              + '<span>'+esc(x.date)+'　'+esc(x.courseName)+'　<b>'+(t.holes?t.score:"–")+'</b>'+(t.complete?"":' <span class="hint">('+t.holes+'H)</span>')+'</span>'
+              + '<span class="row"><button class="btn sm" data-act="resume" data-id="'+x.id+'">開く</button>'
+              + '<button class="btn sm danger" data-act="del-round" data-id="'+x.id+'">削除</button></span></div>';
+          }).join("") + '</div></div>';
+    }
+    return h + '</div>';
+  }
+  var idx = Math.max(0, Math.min(state.ui.hole, r.holes.length-1));
+  var h0 = r.holes[idx], t = roundTotals(r);
+  var out = "";
+  out += '<div class="sec"><div class="card grid" style="gap:10px">'
+    + '<div class="row" style="justify-content:space-between">'
+    + '<div><b>'+esc(r.courseName)+'</b></div>'
+    + '<div class="row"><span class="pill">合計 '+t.score+'</span><span class="pill">'+(t.vsPar>=0?"+":"")+t.vsPar+'</span>'
+    + '<span class="pill">パット '+t.putts+'</span></div></div>'
+    + '<div class="row"><label class="f" for="round-date" style="margin:0">プレー日</label>'
+    + '<input type="date" id="round-date" data-act="round-date" value="'+esc(r.date)+'" style="width:auto;min-height:42px">'
+    + '<span class="hint">'+weekdayJa(r.date)+'</span></div>'
+    + '<div class="dots">' + r.holes.map(function(x, i){
+        return '<i class="'+(i===idx?"cur":(x.score?"on":""))+'"></i>';
+      }).join("") + '</div></div></div>';
+
+  out += '<div class="sec"><div class="card grid" style="gap:18px">'
+    + '<div class="holehead"><button class="btn" data-act="prev-hole" '+(idx===0?"disabled":"")+'>← 前</button>'
+    + '<div style="text-align:center"><div class="holeno">'+(idx+1)+'<small>Par '+h0.par+'</small></div></div>'
+    + '<button class="btn" data-act="next-hole" '+(idx===r.holes.length-1?"disabled":"")+'>次 →</button></div>';
+
+  out += '<div class="two">'
+    + '<div><label class="f">スコア（打数）</label><div class="stepper">'
+    + '<button data-act="dec" data-f="score">−</button><div class="val">'+(h0.score||"–")+'</div><button data-act="inc" data-f="score">＋</button></div>'
+    + '<div class="chips" style="margin-top:10px">'
+    + [[-1,"バーディ"],[0,"パー"],[1,"ボギー"],[2,"ダボ"],[3,"+3"]].map(function(q){
+        return '<button data-act="quick-score" data-v="'+(h0.par+q[0])+'" aria-pressed="'+(h0.score===h0.par+q[0])+'">'+q[1]+' '+(h0.par+q[0])+'</button>';
+      }).join("") + '</div></div>'
+    + '<div><label class="f">パット数</label><div class="stepper">'
+    + '<button data-act="dec" data-f="putts">−</button><div class="val">'+(h0.score?h0.putts:"–")+'</div><button data-act="inc" data-f="putts">＋</button></div>'
+    + '<p class="hint" style="margin-top:10px">グリーン上のパットのみ。エッジからのパターは含めない場合は「使用クラブ」にPTを追加してください。</p></div>'
+    + '</div>';
+
+  out += '<div><label class="f">ティーショットのクラブ</label><div class="chips">'
+    + state.clubs.filter(function(c){ return c!=="PT"; }).map(function(c){
+        return '<button data-act="tee-club" data-v="'+esc(c)+'" aria-pressed="'+(h0.teeClub===c)+'">'+esc(c)+'</button>';
+      }).join("") + '</div></div>';
+  out += '<div><label class="f">ティーショットの結果</label><div class="chips">'
+    + (h0.par===3?TEE_RESULTS_P3:TEE_RESULTS).map(function(o){
+        return '<button data-act="tee-res" data-v="'+o.k+'" aria-pressed="'+(h0.tee===o.k)+'">'+esc(o.n)+'</button>';
+      }).join("") + '</div>'
+    + (h0.par===3?'<p class="hint" style="margin-top:6px">Par3はFWキープの対象外です。かわりに<b>ワンオン</b>を記録し、ティーショットでグリーンを捉えた率を集計します。</p>':'') + '</div>';
+
+  out += '<div><label class="f">使用クラブ（打った順に押す）</label><div class="chips" style="margin-bottom:8px">'
+    + state.clubs.map(function(c){ return '<button data-act="add-club" data-v="'+esc(c)+'">'+esc(c)+'</button>'; }).join("")
+    + '</div><div class="shotlist">'
+    + (h0.clubs.length ? h0.clubs.map(function(c, i){
+        return '<span><b>'+(i+1)+'</b>'+esc(c)+'<button data-act="rm-club" data-i="'+i+'" aria-label="削除">×</button></span>';
+      }).join("") : '<span class="hint" style="border:0;background:none;padding-left:6px">未入力</span>')
+    + '</div>'
+    + '<div class="row" style="margin-top:10px"><button class="btn sm" data-act="measure-here">このホールで飛距離を計測</button></div></div>';
+
+  out += '<div class="two">'
+    + ["ob","bunker","pen"].map(function(f, i){
+        var nm = ["OB","バンカー","ペナルティ"][i];
+        return '<div><label class="f">'+nm+'（回）</label><div class="stepper">'
+          + '<button data-act="dec" data-f="'+f+'">−</button><div class="val">'+(h0[f]||0)+'</div>'
+          + '<button data-act="inc" data-f="'+f+'">＋</button></div></div>';
+      }).join("")
+    + '<div><label class="f">自動判定</label><div class="row" style="min-height:54px">'
+    + '<span class="pill '+(parOn(h0)?"on":"")+'">パーオン '+(h0.score?(parOn(h0)?"○":"×"):"–")+'</span>'
+    + '<span class="pill '+(bogeyOn(h0)?"on":"")+'">ボギーオン '+(h0.score?(bogeyOn(h0)?"○":"×"):"–")+'</span>'
+    + (h0.par===3
+        ? '<span class="pill '+(oneOn(h0)?"on":"")+'">ワンオン '+(oneOn(h0)?"○":"×")+'</span>'
+        : '<span class="pill '+(fwHit(h0)?"on":"")+'">FWキープ '+(fwHit(h0)?"○":"×")+'</span>') + '</div>'
+    + '<p class="hint">打数−パット数から自動計算します。</p></div>'
+    + '</div>';
+
+  out += '<div><label class="f">メモ</label><input type="text" data-act="note" value="'+esc(h0.note||"")+'" placeholder="例：2打目トップ／風は左からのアゲンスト"></div>';
+  out += '<div class="row" style="justify-content:space-between">'
+    + '<button class="btn ghost" data-act="close-round">一覧に戻る</button>'
+    + '<button class="btn primary" data-act="next-hole" '+(idx===r.holes.length-1?"disabled":"")+'>次のホールへ →</button></div>';
+  out += '</div></div>';
+
+  if(t.complete){
+    out += '<div class="sec"><div class="note"><b>18ホール入力完了！</b>　合計 '+t.score+'（'+(t.vsPar>=0?"+":"")+t.vsPar+'）／パット '+t.putts
+      + '　<div style="margin-top:10px"><button class="btn primary sm" data-act="go-analysis">分析を見る</button>'
+      + ' <button class="btn sm" data-act="cloud-save">クラウドに保存</button></div></div></div>';
+  }
+  return out;
+}
+
+/* ============================ 画面：GPS飛距離計測 ============================ */
+var gpsFrom = null, gpsBusy = false, lastMeasure = null;
+var gpsMode = "live"; // "live" = 歩いて計測 / "tap" = 2点タップ
+var live = {watchId:null, from:null, cur:null, dist:0, best:null, err:null};
+function haversine(a, b){
+  var R = 6371000, toR = Math.PI/180;
+  var dLat = (b.lat-a.lat)*toR, dLon = (b.lon-a.lon)*toR;
+  var la1 = a.lat*toR, la2 = b.lat*toR;
+  var x = Math.sin(dLat/2)*Math.sin(dLat/2) + Math.cos(la1)*Math.cos(la2)*Math.sin(dLon/2)*Math.sin(dLon/2);
+  return 2*R*Math.asin(Math.sqrt(x));
+}
+function getFix(maxMs, goodAcc){
+  return new Promise(function(resolve, reject){
+    if(!navigator.geolocation) return reject({code:-1, message:"この端末・ブラウザでは位置情報が使えません"});
+    var best = null, id = null, timer = null;
+    function finish(){
+      if(id!=null) navigator.geolocation.clearWatch(id);
+      clearTimeout(timer);
+      best ? resolve(best) : reject({code:3, message:"位置を取得できませんでした"});
+    }
+    try{
+      id = navigator.geolocation.watchPosition(function(p){
+        var c = {lat:p.coords.latitude, lon:p.coords.longitude, acc:p.coords.accuracy, ts:p.timestamp};
+        if(!best || c.acc < best.acc) best = c;
+        if(best.acc <= goodAcc) finish();
+      }, function(err){
+        if(id!=null) navigator.geolocation.clearWatch(id);
+        clearTimeout(timer);
+        if(best) resolve(best); else reject(err);
+      }, {enableHighAccuracy:true, maximumAge:0, timeout:maxMs});
+    }catch(e){ return reject(e); }
+    timer = setTimeout(finish, maxMs);
+  });
+}
+/* ---- 動作環境チェック ---- */
+function gpsEnv(){
+  var fp = document.featurePolicy || document.permissionsPolicy || null;
+  var policy = null;
+  try{ if(fp && fp.allowsFeature) policy = fp.allowsFeature("geolocation"); }catch(e){ policy = null; }
+  return {
+    secure: (window.isSecureContext === true) || location.protocol === "https:",
+    api: !!navigator.geolocation,
+    framed: (function(){ try{ return window.self !== window.top; }catch(e){ return true; } })(),
+    policy: policy
+  };
+}
+function paintDiag(){
+  var el = document.getElementById("diag"); if(!el) return;
+  var e = gpsEnv();
+  function row(k, ok, v){
+    return '<tr><td>'+k+'</td><td style="text-align:right"><b style="color:'+(ok===true?"var(--good)":ok===false?"var(--crit)":"var(--muted)")+'">'+v+'</b></td></tr>';
+  }
+  var html = '<table><tbody>'
+    + row("安全な接続（HTTPS）", e.secure, e.secure ? "OK" : "不可")
+    + row("位置情報API", e.api, e.api ? "あり" : "なし")
+    + row("表示形式", null, e.framed ? "ページ内フレーム" : "通常のタブ")
+    + row("フレームでのGPS許可", e.policy, e.policy === true ? "許可" : e.policy === false ? "ブロック" : "判定不可")
+    + '<tr id="permrow"><td>ブラウザの許可状態</td><td style="text-align:right"><b>確認中…</b></td></tr>'
+    + '</tbody></table><div id="diagverdict" style="margin-top:12px"></div>';
+  el.innerHTML = html;
+  function verdict(pstate){
+    var v = document.getElementById("diagverdict"); if(!v) return;
+    if(!e.api){ v.innerHTML = '<div class="note" style="border-color:var(--crit)">この端末・ブラウザは位置情報に対応していません。予備の計測方式をお使いください。</div>'; return; }
+    if(e.framed && e.policy !== true){
+      v.innerHTML = '<div class="note" style="border-color:var(--crit)"><b>判定：埋め込み表示のためブロック中</b>'
+        + '<div style="margin-top:6px">いまはClaudeの画面の中に表示されています。この状態では「拒否」と出るのが正常で、iPhoneの設定は関係ありません。'
+        + '上の赤枠の<b>「GPS版を新しいタブで開く」</b>から開き直してください。</div></div>';
+      return;
+    }
+    if(pstate === "denied"){
+      v.innerHTML = '<div class="note" style="border-color:var(--crit)"><b>判定：このページの位置情報がiPhone側で拒否されています</b>'
+        + '<div style="margin-top:8px"><b>まず切り分け：</b>iPhoneの「マップ」アプリを開き、右上の現在地ボタン（矢印）を押して<b>青い点が出るか</b>を見てください。'
+        + '出ない場合は端末全体で位置情報が止まっています（下の②とスクリーンタイムを確認）。出る場合はブラウザ側の設定です。</div>'
+        + '<div style="margin-top:8px">上から順に確認してください。</div>'
+        + '<ol style="margin:8px 0 0;padding-left:20px;line-height:1.8">'
+        + '<li><b>設定</b>アプリ →「<b>Safari</b>」→ 下へスクロール →「<b>Webサイトの設定</b>」の見出しの下にある「<b>位置情報</b>」→「<b>確認</b>」を選ぶ<br>'
+        + '<span class="hint">ここが「拒否」だと、どのサイトでも許可を聞かれずに拒否されます。まずここを見てください。</span></li>'
+        + '<li><b>設定</b>アプリ →「<b>プライバシーとセキュリティ</b>」→「<b>位置情報サービス</b>」をオン → 一覧の「<b>Safari Webサイト</b>」→「<b>次回または共有時に確認</b>」<br>'
+        + '<span class="hint">一覧に「Safari Webサイト」が無い場合は、まだ一度も位置情報を要求できていない状態です。①を先にお試しください。</span></li>'
+        + '<li>①の大きなボタンをもう一度タップして、許可を聞かれるか確認する</li>'
+        + '<li>ページ上部の「<b>ぁあ</b>」→「<b>Webサイトの設定</b>」→「位置情報」→「<b>許可</b>」<br>'
+        + '<span class="hint">この「位置情報」の項目は、<b>そのページが一度でも位置情報を要求したあとにだけ表示されます</b>。見当たらない場合は、まだ要求が届いていません（①か②が原因）。</span></li>'
+        + '<li><b>Chromeをお使いの場合</b>：設定アプリ →「<b>Chrome</b>」→「<b>位置情報</b>」→「Appの使用中は許可」</li>'
+        + '<li><b>設定が変更できない・グレーで押せない場合</b>：設定 →「<b>スクリーンタイム</b>」→「コンテンツとプライバシーの制限」→「<b>位置情報サービス</b>」→「<b>変更を許可</b>」に変更</li>'
+        + '<li>それでも直らないときだけ：設定 → Safari →「履歴とWebサイトデータを消去」<br>'
+        + '<span class="hint" style="color:var(--crit)">※この操作は入力済みのスコアも消えます。必ず先に「データ」タブでクラウドに保存してください。</span></li>'
+        + '</ol>'
+        + '<div class="row" style="margin-top:10px"><button class="btn sm primary" data-act="gps-test">設定を変えたらここで再確認</button></div></div>';
+      return;
+    }
+    v.innerHTML = '<div class="note"><b>判定：GPSが使える状態です。</b>①のボタンから計測できます。'
+      + (pstate === "prompt" ? '初回タップ時に「位置情報の使用を許可しますか」と聞かれたら「<b>Appの使用中は許可</b>」を選んでください。' : '') + '</div>';
+  }
+  if(navigator.permissions && navigator.permissions.query){
+    navigator.permissions.query({name:"geolocation"}).then(function(p){
+      var r = document.getElementById("permrow");
+      if(r){
+        var t = p.state === "granted" ? "許可済み" : p.state === "denied" ? "拒否されている" : "未設定（タップ時に確認）";
+        var col = p.state === "denied" ? "var(--crit)" : p.state === "granted" ? "var(--good)" : "var(--muted)";
+        r.children[1].innerHTML = '<b style="color:'+col+'">'+t+'</b>';
+      }
+      lastPermState = p.state;
+      verdict(p.state);
+    }).catch(function(){ verdict(null); });
+  } else {
+    var r2 = document.getElementById("permrow");
+    if(r2) r2.children[1].innerHTML = '<b style="color:var(--muted)">判定不可</b>';
+    verdict(null);
+  }
+}
+var lastPermState = "?";
+function diagText(){
+  var e = gpsEnv();
+  return [
+    "【フェアウェイ手帳 診断】",
+    "表示形式: " + (e.framed ? "ページ内フレーム（埋め込み）" : "通常のタブ（単独）"),
+    "安全な接続: " + (e.secure ? "OK" : "不可"),
+    "位置情報API: " + (e.api ? "あり" : "なし"),
+    "フレームでのGPS許可: " + (e.policy === true ? "許可" : e.policy === false ? "ブロック" : "判定不可"),
+    "ブラウザの許可状態: " + lastPermState,
+    "URL: " + location.href,
+    "UA: " + navigator.userAgent
+  ].join("\n");
+}
+function gpsError(err){
+  var code = err && err.code;
+  if(code === 1){ state.settings.gpsBlocked = true; saveLocal(); }
+  var msg = code === 1 ? "位置情報の利用が許可されていません。"
+          : code === 2 ? "衛星を捕まえられませんでした。屋外で空が開けた場所に立って、もう一度お試しください。"
+          : code === 3 ? "時間内に測位できませんでした。もう一度タップしてください。"
+          : (err && err.message) || "位置情報を利用できません。";
+  var raw = (err && err.message) ? '<div class="hint" style="margin-top:6px">詳細：'+esc(err.message)+'</div>' : "";
+  var e = gpsEnv();
+  var extra = "";
+  if(code === 1 || e.policy === false || (e.framed && e.policy !== true)){
+    extra = '<div style="margin-top:10px">このページはClaudeの画面の中に埋め込まれて表示されているため、位置情報がブロックされることがあります。'
+      + '<b>下のボタンでこのページだけを新しいタブで開く</b>と、ブラウザが位置情報の許可を聞いてくるようになります。</div>'
+      + '<div class="row" style="margin-top:10px"><button class="btn sm" data-act="open-tab">新しいタブでこのページを開く</button></div>';
+  }
+  var out = document.getElementById("gpsout");
+  if(out) out.innerHTML = '<div class="note" style="border-color:var(--crit)"><b>計測できませんでした</b><div style="margin-top:4px">'+esc(msg)+'</div>'+raw+extra+'</div>';
+}
+
+/* ---- 歩いて計測（ライブ追尾） ---- */
+function stopLive(){
+  if(live.watchId != null){ try{ navigator.geolocation.clearWatch(live.watchId); }catch(e){} }
+  live.watchId = null;
+}
+function paintLive(){
+  var yd = document.getElementById("liveyd");
+  if(!yd) return;
+  yd.textContent = Math.round(live.dist / YD);
+  var m = document.getElementById("livemeta");
+  if(m) m.textContent = Math.round(live.dist) + " m ／ 現在の測位誤差 ±" + Math.round(live.cur ? live.cur.acc : 0) + "m";
+}
+async function startLive(){
+  var btn = document.getElementById("gpsbtn");
+  if(btn){ btn.disabled = true; btn.textContent = "現在地を測っています…"; }
+  try{
+    var fix = await getFix(12000, 10);
+    live.from = fix; live.cur = fix; live.dist = 0;
+    live.watchId = navigator.geolocation.watchPosition(function(p){
+      live.cur = {lat:p.coords.latitude, lon:p.coords.longitude, acc:p.coords.accuracy, ts:p.timestamp};
+      live.dist = haversine(live.from, live.cur);
+      paintLive();
+    }, function(){}, {enableHighAccuracy:true, maximumAge:1000, timeout:30000});
+    lockScroll = true; render();
+  }catch(err){
+    if(btn){ btn.disabled = false; btn.textContent = "① ボールを打つ位置でタップ"; }
+    gpsError(err);
+  }
+}
+function confirmLive(){
+  if(live.watchId == null) return;
+  lastMeasure = {club: state.ui.gpsClub, meters: live.dist, yards: live.dist / YD,
+                 acc: Math.max(live.from ? live.from.acc : 0, live.cur ? live.cur.acc : 0)};
+  stopLive(); live.from = null; live.cur = null; live.dist = 0;
+  lockScroll = true; render();
+}
+
+function parseLatLon(t){
+  if(!t) return null;
+  var m = String(t).match(/-?\d{1,3}\.\d{3,}/g);
+  if(!m || m.length < 2) return null;
+  var la = parseFloat(m[0]), lo = parseFloat(m[1]);
+  if(isNaN(la) || isNaN(lo) || Math.abs(la) > 90 || Math.abs(lo) > 180) return null;
+  return {lat:la, lon:lo, acc:0};
+}
+function coordDist(){
+  var a = parseLatLon((document.getElementById("cd-a")||{}).value);
+  var b2 = parseLatLon((document.getElementById("cd-b")||{}).value);
+  return (a && b2) ? haversine(a, b2) : null;
+}
+function paintCoords(){
+  var d = coordDist();
+  var o = document.getElementById("cdcalc"); if(o) o.textContent = d == null ? "–" : Math.round(d/YD);
+  var m = document.getElementById("cdmeta");
+  if(m) m.textContent = d == null ? "2地点の座標を貼り付けてください" : Math.round(d) + " m（2地点の直線距離）";
+}
+function methodLabel(s){
+  if(s.method === "coords") return "座標GPS";
+  if(s.method === "yard") return "残り距離";
+  if(s.method === "steps") return "歩測";
+  if(s.method === "manual") return "手入力";
+  return s.acc ? "GPS ±"+Math.round(s.acc)+"m" : "手入力";
+}
+function recordShot(yards, method, acc){
+  var rr = currentRound();
+  state.shots.push({
+    id: uid("s"), ts: Date.now(), club: state.ui.gpsClub, yards: yards, meters: yards*YD,
+    acc: acc || null, method: method, roundId: rr ? rr.id : null,
+    courseName: rr ? rr.courseName : "", hole: rr ? state.ui.hole+1 : null, updatedAt: Date.now()
+  });
+  markDirty(); lockScroll = true; render();
+  toast(state.ui.gpsClub + " " + Math.round(yards) + "yd を記録しました");
+}
+function gpsUnlockPanel(){
+  return '<div class="note" style="border-color:var(--crit)">'
+    + '<b>GPSを使うには、このページを単独のタブで開いてください</b>'
+    + '<div style="margin-top:6px">いまはClaudeの画面の中に埋め込まれて表示されているため、iPhone・Androidが位置情報の利用を許可しません。'
+    + 'このページだけを開き直せばGPSが使えます（確認済み）。<b>入力したデータは同じ端末なら両方の画面で共有されます。</b></div>'
+    + '<div style="margin-top:12px"><a class="gpsbig" style="display:flex;align-items:center;justify-content:center;text-decoration:none;text-align:center;padding:12px" '
+    + 'href="'+esc(location.href)+'" target="_blank" rel="noopener">GPS版を新しいタブで開く</a></div>'
+    + '<div style="margin-top:10px" class="hint">上のボタンが反応しない場合は、下のURLをコピーしてSafariの新しいタブに貼り付けてください。</div>'
+    + '<div class="row" style="margin-top:6px"><input type="text" id="selfurl" readonly value="'+esc(location.href)+'" style="flex:1;min-width:160px;font-size:12px">'
+    + '<button class="btn sm" data-act="copy-url">コピー</button></div>'
+    + '<div style="margin-top:10px" class="hint">Safariで許可が下りない場合は、コピーしたURLを<b>Chrome</b>など別のブラウザアプリで開くと、そのアプリ独自の許可として聞き直されます。'
+    + 'それも難しい場合は、計測方式の「<b>座標を貼り付け</b>」（ショートカットアプリを使う方法）をお使いください。</div>'
+    + '<div style="margin-top:10px" class="hint">開いたタブで①をタップすると、iPhoneが「位置情報の使用を許可しますか」と聞いてきます。'
+    + '<b>「Appの使用中は許可」</b>を選べば計測できます。ラウンド中はそのタブを使い、帰宅後にClaudeのこの画面から「クラウドに保存」を押してください。</div>'
+    + '</div>';
+}
+function viewGps(){
+  var r = currentRound();
+  var cs = allClubStats();
+  var tracking = live.watchId != null;
+  var out = '<div class="sec"><div class="sec-h"><span class="eyebrow">GPS</span><h2>飛距離を計測する</h2></div>';
+  var env = gpsEnv();
+  var embedded = env.framed && (env.policy === false || state.settings.gpsBlocked);
+  out += '<div class="card grid" style="gap:16px">'
+    + (embedded ? gpsUnlockPanel() : "")
+    + (!env.framed ? '<div class="note"><b>GPSが使える状態で開いています。</b>このタブをそのままお使いください。'
+        + 'ホーム画面に追加しておくと、次回から1タップでこの状態で開けます（Safariの共有ボタン →「ホーム画面に追加」）。</div>' : '')
+    + '<div><label class="f">クラブ</label><div class="chips">'
+    + state.clubs.filter(function(c){ return c!=="PT"; }).map(function(c){
+        return '<button data-act="gps-club" data-v="'+esc(c)+'" aria-pressed="'+(state.ui.gpsClub===c)+'">'+esc(c)+'</button>';
+      }).join("") + '</div></div>'
+    + '<div><label class="f">計測方式</label><div class="chips">'
+    + '<button data-act="gps-mode" data-v="live" aria-pressed="'+(gpsMode==="live")+'">GPSで歩いて計測</button>'
+    + '<button data-act="gps-mode" data-v="tap" aria-pressed="'+(gpsMode==="tap")+'">GPSで2点タップ</button>'
+    + '<button data-act="gps-mode" data-v="coords" aria-pressed="'+(gpsMode==="coords")+'">座標を貼り付け（ショートカット）</button>'
+    + '<button data-act="gps-mode" data-v="yard" aria-pressed="'+(gpsMode==="yard")+'">予備：残り距離から</button>'
+    + '<button data-act="gps-mode" data-v="steps" aria-pressed="'+(gpsMode==="steps")+'">予備：歩測</button>'
+    + '</div></div>';
+
+
+  if(gpsMode === "coords"){
+    out += '<div class="grid" style="gap:14px">'
+      + '<p class="hint">iPhoneの「ショートカット」アプリで現在地の座標をコピーし、ここに貼り付ける方法です。'
+      + 'ショートカットはSafariとは別に位置情報の許可を持つため、ブラウザ側で許可が下りない場合でもGPSが使えます。</p>'
+      + '<div><label class="f">① 打つ位置の座標</label>'
+      + '<div class="row"><input type="text" id="cd-a" data-act="cdcalc" placeholder="35.712345, 140.123456" style="flex:1;min-width:150px">'
+      + '<button class="btn sm" data-act="paste-a">貼り付け</button></div></div>'
+      + '<div><label class="f">② ボール地点の座標</label>'
+      + '<div class="row"><input type="text" id="cd-b" data-act="cdcalc" placeholder="35.713456, 140.123456" style="flex:1;min-width:150px">'
+      + '<button class="btn sm" data-act="paste-b">貼り付け</button></div></div>'
+      + '<div style="text-align:center"><div class="readout"><b id="cdcalc">–</b><span>yd</span></div>'
+      + '<div class="hint" id="cdmeta">2地点の直線距離</div></div>'
+      + '<button class="gpsbig" data-act="save-coords">この距離を記録する</button>'
+      + '<details style="border-top:1px solid var(--grid);padding-top:10px">'
+      + '<summary style="cursor:pointer;font-size:14px;color:var(--ink-2)">ショートカットの作り方（最初の1回だけ）</summary>'
+      + '<ol style="padding-left:20px;line-height:1.9;margin-top:8px">'
+      + '<li>iPhoneの「<b>ショートカット</b>」アプリを開き、右上の「<b>＋</b>」</li>'
+      + '<li>「アクションを追加」で「<b>現在の場所を取得</b>」を検索して追加</li>'
+      + '<li>続けて「<b>クリップボードにコピー</b>」を検索して追加<br>'
+      + '<span class="hint">「現在の場所」がそのまま入力になります。もし住所になってしまう場合は、間に「テキスト」アクションを入れ、変数の詳細から<b>緯度</b>と<b>経度</b>をカンマ区切りで並べてください。</span></li>'
+      + '<li>名前を「<b>いまの座標</b>」にして保存。初回実行時に位置情報の許可を聞かれるので「<b>許可</b>」</li>'
+      + '<li>ホーム画面に追加しておくと、1タップで座標をコピーできます</li>'
+      + '</ol>'
+      + '<p class="hint">使い方：打つ位置でショートカットを実行 →「①貼り付け」／ボール地点でもう一度実行 →「②貼り付け」→ 記録。</p>'
+      + '</details></div>';
+  } else if(gpsMode === "yard"){
+    out += '<div class="grid" style="gap:14px">'
+      + '<p class="hint">コースのヤード杭・スプリンクラーの数字を使う方法です。打つ前と打った後の「グリーンまでの残り距離」を入れると、その差が飛距離になります。ティーショットならホールの全長を「打つ前」に入れてください。</p>'
+      + '<div class="two">'
+      + '<div><label class="f">打つ前の残り距離（yd）</label><input type="number" inputmode="numeric" id="yd-before" data-act="ydcalc" placeholder="例：380"></div>'
+      + '<div><label class="f">打った後の残り距離（yd）</label><input type="number" inputmode="numeric" id="yd-after" data-act="ydcalc" placeholder="例：190"></div>'
+      + '</div>'
+      + '<div style="text-align:center"><div class="readout"><b id="ydcalc">–</b><span>yd</span></div>'
+      + '<div class="hint">この差が ' + esc(state.ui.gpsClub) + ' の飛距離になります</div></div>'
+      + '<button class="gpsbig" data-act="save-yard">この距離を記録する</button>'
+      + '</div>';
+  } else if(gpsMode === "steps"){
+    out += '<div class="grid" style="gap:14px">'
+      + '<p class="hint">打った地点からボールまでを歩数で数える方法です。歩幅を一度決めておけば、以後は歩数を入れるだけで記録できます。</p>'
+      + '<div class="two">'
+      + '<div><label class="f">歩数</label><input type="number" inputmode="numeric" id="st-steps" data-act="stcalc" placeholder="例：160"></div>'
+      + '<div><label class="f">歩幅（cm）</label><input type="number" inputmode="numeric" id="st-stride" data-act="stcalc" value="'+state.settings.stride+'"></div>'
+      + '</div>'
+      + '<div style="text-align:center"><div class="readout"><b id="stcalc">–</b><span>yd</span></div>'
+      + '<div class="hint">歩幅の目安：身長×0.45（170cmなら約76cm）</div></div>'
+      + '<button class="gpsbig" data-act="save-steps">この距離を記録する</button>'
+      + '</div>';
+  } else if(gpsMode === "live"){
+    if(tracking){
+      out += '<div style="text-align:center;padding:6px 0">'
+        + '<div class="readout"><b id="liveyd">'+Math.round(live.dist/YD)+'</b><span>yd</span></div>'
+        + '<div class="hint" id="livemeta">'+Math.round(live.dist)+' m ／ 現在の測位誤差 ±'+Math.round(live.cur?live.cur.acc:0)+'m</div></div>'
+        + '<button class="gpsbig" data-act="live-fix" data-armed="1">② ボールの位置で確定する</button>'
+        + '<div class="row"><button class="btn sm ghost" data-act="live-cancel">中止する</button></div>'
+        + '<p class="hint">打った地点からの距離がリアルタイムに更新されます。ボールのところまで歩いて、止まってから「確定」を押してください。</p>';
+    } else {
+      out += '<button class="gpsbig" id="gpsbtn">① ボールを打つ位置でタップ</button>'
+        + '<div id="gpsout"><p class="hint">立ち止まってからタップすると精度が上がります。GPSの誤差は通常 ±5〜10m（約±6〜11yd）です。</p></div>';
+    }
+  } else {
+    out += '<button class="gpsbig" id="gpsbtn" data-armed="'+(gpsFrom?1:0)+'">'
+      + (gpsFrom ? '② 打った後、ボール地点でタップ' : '① ボールを打つ位置でタップ') + '</button>'
+      + '<div id="gpsout" class="grid" style="gap:6px">'
+      + (gpsFrom ? '<p class="hint">1打目地点を記録しました（誤差 ±'+Math.round(gpsFrom.acc)+'m）。ボールの位置まで歩いて、②をタップしてください。</p>'
+                 : '<p class="hint">打つ位置と落下地点の2か所でタップして、その2点間の距離を出します。</p>')
+      + '</div>';
+  }
+
+  out += (lastMeasure ? '<div class="note"><b>'+esc(lastMeasure.club)+'　'+Math.round(lastMeasure.yards)+' yd</b>'
+        + '（'+Math.round(lastMeasure.meters)+' m ／ 誤差 ±'+Math.round(lastMeasure.acc)+'m）'
+        + '<div class="row" style="margin-top:10px"><button class="btn primary sm" data-act="save-shot">この記録を保存</button>'
+        + '<button class="btn sm ghost" data-act="drop-shot">破棄</button></div></div>' : '')
+    + '<div class="row"><button class="btn sm ghost" data-act="manual-shot">GPSを使わず手入力する</button>'
+    + (gpsFrom ? '<button class="btn sm ghost" data-act="gps-reset">計測をやり直す</button>' : '') + '</div>'
+    + (r ? '<p class="hint">記録先：'+esc(r.date)+' '+esc(r.courseName)+' の '+(state.ui.hole+1)+'番ホール</p>' : '')
+    + '<details open style="border-top:1px solid var(--grid);padding-top:10px">'
+    + '<summary style="cursor:pointer;font-size:14px;color:var(--ink-2)">GPSの動作チェックと対処</summary>'
+    + '<div id="diag" style="margin-top:10px"></div>'
+    + '<div class="row" style="margin-top:10px"><button class="btn sm" data-act="gps-test">測位テストを実行</button>'
+    + '<button class="btn sm ghost" data-act="open-tab">新しいタブでこのページを開く</button>'
+    + '<button class="btn sm" data-act="copy-diag">診断結果をコピー</button></div>'
+    + '<div id="diagtext"></div>'
+    + '<div id="testout"></div>'
+    + '<p class="hint" style="margin-top:8px">「フレームでのGPS許可」がブロックと出る場合は、新しいタブでこのページを開くと計測できます。</p>'
+    + '</details>'
+    + '</div></div>';
+
+  if(cs.length){
+    out += '<div class="sec"><div class="sec-h"><span class="eyebrow">CLUB YARDAGE</span><h2>クラブ別 飛距離データ</h2></div>'
+      + '<div class="card"><div class="chartwrap">'
+      + barsH(cs.map(function(c){
+          return {label:c.club, v:c.useAvg, vlabel:Math.round(c.useAvg)+"y", color:"var(--s1)",
+                  tip:c.club+"：平均"+Math.round(c.useAvg)+"y、最長"+Math.round(c.max)+"y、"+c.n+"球"};
+        }), {aria:"クラブ別平均飛距離"})
+      + '</div><div class="scroll-x" style="margin-top:14px"><table><thead><tr><th>クラブ</th><th>球数</th><th>実用平均</th>'
+      + '<th>中央値</th><th>直近5球</th><th>最長</th><th>最短</th><th>ばらつき</th><th>番手差</th></tr></thead><tbody>'
+      + cs.map(function(c, i){
+          var next = cs[i+1];
+          var gap = next ? (c.useAvg - next.useAvg) : null;
+          var gapTxt = gap==null ? "–" : Math.round(gap)+"y"+(gap>=25?" ⚠︎広い":(gap<=8?" ⚠︎重複":""));
+          return '<tr><td><b>'+esc(c.club)+'</b></td><td>'+c.n+'</td><td><b>'+Math.round(c.useAvg)+'</b></td>'
+            + '<td>'+Math.round(c.med)+'</td><td>'+Math.round(c.recent)+'</td><td>'+Math.round(c.max)+'</td>'
+            + '<td>'+Math.round(c.min)+'</td><td>±'+Math.round(c.sd)+'</td><td>'+gapTxt+'</td></tr>';
+        }).join("")
+      + '</tbody></table></div>'
+      + '<p class="hint" style="margin-top:8px">実用平均＝外れ値（IQR法）を除いた平均。番手差が25y以上あるとクラブの「穴」、8y以下だと番手の重複が疑われます。</p>'
+      + '</div></div>';
+    out += '<div class="sec"><div class="sec-h"><span class="eyebrow">LOG</span><h2>計測ログ</h2></div><div class="card scroll-x"><table>'
+      + '<thead><tr><th>日時</th><th>クラブ</th><th>ヤード</th><th>m</th><th>計測方法</th><th>ホール</th><th></th></tr></thead><tbody>'
+      + state.shots.slice().sort(function(a,b){return b.ts-a.ts;}).slice(0,40).map(function(s){
+          var d = new Date(s.ts);
+          return '<tr><td>'+(d.getMonth()+1)+"/"+d.getDate()+" "+String(d.getHours()).padStart(2,"0")+":"+String(d.getMinutes()).padStart(2,"0")+'</td>'
+            + '<td>'+esc(s.club)+'</td><td><b>'+Math.round(s.yards)+'</b></td><td>'+Math.round(s.meters)+'</td>'
+            + '<td>'+esc(methodLabel(s))+'</td><td>'+(s.hole?s.hole+"番":"–")+'</td>'
+            + '<td><button class="btn sm danger" data-act="del-shot" data-id="'+s.id+'">削除</button></td></tr>';
+        }).join("")
+      + '</tbody></table></div></div>';
+  } else {
+    out += '<div class="sec"><div class="empty">まだ計測データがありません。1球ずつ貯めていきましょう。</div></div>';
+  }
+  return out;
+}
+
+/* ============================ 画面：分析 ============================ */
+function viewAnalysis(){
+  var complete = state.rounds.filter(function(r){ return roundTotals(r).holes >= 9; });
+  if(!complete.length) return '<div class="sec"><div class="empty">分析するラウンドがまだありません。<br>「スコア入力」から1ラウンド記録してください。</div></div>';
+  var courses = {};
+  complete.forEach(function(r){ courses[r.courseId] = (courses[r.courseId]||0) + 1; });
+  var ids = Object.keys(courses).sort(function(a,b){ return courses[b]-courses[a]; });
+  var sel = state.ui.analysisCourse || ids[0];
+  var rounds = complete.filter(function(r){ return r.courseId === sel; });
+  var a = aggregate(rounds), hs = holeStats(rounds), mix = scoreMix(rounds), pg = parGroups(rounds);
+  var cname = (rounds[0]||{}).courseName || "";
+
+  var out = '<div class="sec"><div class="sec-h"><span class="eyebrow">ANALYSIS</span><h2>'+esc(cname)+'</h2>'
+    + '<span class="hint">'+rounds.length+'ラウンド分析</span>'
+    + (ids.length>1 ? '<select id="acourse" style="width:auto;min-height:38px;margin-left:auto">'
+        + ids.map(function(id){
+            var nm = complete.filter(function(r){return r.courseId===id;})[0].courseName;
+            return '<option value="'+esc(id)+'"'+(id===sel?" selected":"")+'>'+esc(nm)+'（'+courses[id]+'R）</option>';
+          }).join("") + '</select>' : '')
+    + '</div>' + kpiBlock(a) + '</div>';
+
+  // スコア推移
+  var pts = rounds.slice().reverse().map(function(r){
+    var t = roundTotals(r);
+    return {label:r.date, short:r.date.slice(5).replace("-","/"), v:t.score};
+  });
+  out += '<div class="sec"><div class="sec-h"><span class="eyebrow">TREND</span><h2>スコアの推移</h2></div>'
+    + '<div class="card"><div class="chartwrap">' + lineChart(pts, {unit:"打"}) + '</div>'
+    + '<p class="hint" style="margin-top:6px">直近'+Math.min(5,pts.length)+'ラウンド平均 '
+    + fmt(pts.slice(-5).reduce(function(x,p){return x+p.v;},0)/Math.min(5,pts.length),1)+'打</p></div></div>';
+
+  // スコア構成
+  var mixItems = [
+    {label:"バーディ以上", v:mix.m.b, color:"var(--o1)"},
+    {label:"パー", v:mix.m.p, color:"var(--o2)"},
+    {label:"ボギー", v:mix.m.bo, color:"var(--o3)"},
+    {label:"ダブル", v:mix.m.d, color:"var(--o4)"},
+    {label:"トリプル以上", v:mix.m.t, color:"var(--o5)"}
+  ].map(function(i){ i.vlabel = i.v + "（" + Math.round(i.v/mix.n*100) + "%）"; i.tip = i.label+" "+i.v+"ホール"; return i; });
+  out += '<div class="sec"><div class="sec-h"><span class="eyebrow">MIX</span><h2>スコアの内訳</h2></div>'
+    + '<div class="card"><div class="chartwrap">' + barsH(mixItems, {aria:"スコア内訳"}) + '</div>'
+    + '<p class="hint" style="margin-top:6px">全'+mix.n+'ホール中。ダブルボギー以上を減らすことが平均スコア短縮の近道です（現在 '
+    + Math.round((mix.m.d+mix.m.t)/mix.n*100) + '%）。</p></div></div>';
+
+  // Par別
+  out += '<div class="sec"><div class="sec-h"><span class="eyebrow">BY PAR</span><h2>Par別の平均</h2></div><div class="card">'
+    + '<div class="chartwrap">' + barsV(pg.map(function(o, i){
+        return {label:"Par "+o.par, v:o.avg, vlabel:fmt(o.avg,2), sub:(o.vs>=0?"+":"")+fmt(o.vs,2),
+                color:["var(--s1)","var(--s2)","var(--s3)"][i%3], tip:"Par"+o.par+"：平均"+fmt(o.avg,2)+"（"+o.n+"ホール）"};
+      }), {aria:"Par別平均スコア"}) + '</div>'
+    + '<div class="scroll-x" style="margin-top:12px"><table><thead><tr><th>Par</th><th>ホール数</th><th>平均</th><th>vs Par</th><th>平均パット</th><th>パーオン率</th><th>ワンオン率</th></tr></thead><tbody>'
+    + pg.map(function(o){
+        return '<tr><td>Par '+o.par+'</td><td>'+o.n+'</td><td><b>'+fmt(o.avg,2)+'</b></td><td>'+(o.vs>=0?"+":"")+fmt(o.vs,2)+'</td>'
+          + '<td>'+fmt(o.putts/o.n,2)+'</td><td>'+Math.round(o.pOnRate)+'%</td>'
+          + '<td>'+(o.oneRate==null?"–":Math.round(o.oneRate)+"%")+'</td></tr>';
+      }).join("") + '</tbody></table></div>'
+    + '<p class="hint" style="margin-top:8px">ワンオン率＝Par3でティーショットがグリーンに乗った割合。</p></div></div>';
+
+  // ホール別
+  out += '<div class="sec"><div class="sec-h"><span class="eyebrow">BY HOLE</span><h2>ホール別の成績</h2></div><div class="card scroll-x"><table>'
+    + '<thead><tr><th>H</th><th>Par</th><th>回数</th><th>平均</th><th>vs Par</th><th>FW率</th><th>ワンオン率</th><th>パーオン率</th><th>平均パット</th><th>OB率</th><th>バンカー率</th><th>危険度</th></tr></thead><tbody>'
+    + hs.map(function(o){
+        var badge = o.risk==="crit" ? '<span class="badge crit">● 危険</span>' : o.risk==="warn" ? '<span class="badge warn">▲ 注意</span>' : '<span class="badge ok">■ 安定</span>';
+        return '<tr><td><b>'+o.hole+'</b></td><td>'+o.par+'</td><td>'+o.n+'</td><td><b>'+fmt(o.avg,2)+'</b></td>'
+          + '<td>'+(o.vsPar>=0?"+":"")+fmt(o.vsPar,2)+'</td><td>'+(o.fwRate==null?"–":Math.round(o.fwRate)+"%")+'</td>'
+          + '<td>'+(o.oneRate==null?"–":Math.round(o.oneRate)+"%")+'</td>'
+          + '<td>'+Math.round(o.pOnRate)+'%</td><td>'+fmt(o.putts/o.n,2)+'</td><td>'+Math.round(o.obRate)+'%</td>'
+          + '<td>'+Math.round(o.bkRate)+'%</td><td>'+badge+'</td></tr>';
+      }).join("") + '</tbody></table></div></div>';
+
+  // コーチング
+  out += '<div class="sec"><div class="sec-h"><span class="eyebrow">COACHING</span><h2>今のあなたへの処方箋</h2></div>'
+    + coachBlock(a, hs, mix, pg, rounds) + '</div>';
+  return out;
+}
+function coachBlock(a, hs, mix, pg, rounds){
+  var strong = hs.filter(function(o){ return o.n >= 2; }).slice().sort(function(x,y){ return x.vsPar - y.vsPar; });
+  var weak = strong.slice().reverse();
+  var out = '<div class="two">';
+  out += '<div class="card"><h3 style="font-size:17px;margin-bottom:8px">強み トップ3</h3><ul class="coach">'
+    + strong.slice(0,3).map(function(o){
+        return '<li><b>'+o.hole+'番（Par'+o.par+'）</b> 平均 '+fmt(o.avg,2)+'（'+(o.vsPar>=0?"+":"")+fmt(o.vsPar,2)+'）'
+          + (o.fwRate!=null && o.fwRate>=60 ? '／FW '+Math.round(o.fwRate)+'%' : '')
+          + '<br><span class="hint">いつも通りのリズムで。ここは変えない。</span></li>';
+      }).join("") + '</ul></div>';
+  out += '<div class="card"><h3 style="font-size:17px;margin-bottom:8px">改善ポイント トップ3</h3><ul class="coach">'
+    + weak.slice(0,3).map(function(o){
+        var advice = o.obRate >= 5 ? "ティーは方向性優先。1番手落として置きにいく。"
+                   : o.bkRate >= 15 ? "グリーン手前のバンカーを消す番手選択（1番手上げ）。"
+                   : o.pOnRate < 10 ? "2オン・3オンを狙わず、100y残しの得意距離を作る。"
+                   : "パーオンを狙わず、ボギーオン＋1パットに徹する。";
+        return '<li><b>'+o.hole+'番（Par'+o.par+'）</b> 平均 '+fmt(o.avg,2)+'（'+(o.vsPar>=0?"+":"")+fmt(o.vsPar,2)+'）'
+          + '<br><span class="hint">'+advice+'</span></li>';
+      }).join("") + '</ul></div></div>';
+
+  var msgs = [];
+  if(a.fwRate != null && a.fwRate < 70) msgs.push("FWキープ率 <b>"+a.fwRate+"%</b>（目標70%）。ティーショットは飛距離より方向。スイングを8割に抑えるだけで平均2〜3打変わります。");
+  if(a.avgPutts > 30) msgs.push("平均パット <b>"+fmt(a.avgPutts,1)+"</b>（目標30）。1m以内の短いパットを1日50球。ここが最も費用対効果の高い練習です。");
+  if(a.obPerRound > 1) msgs.push("OBが1ラウンド <b>"+fmt(a.obPerRound,1)+"回</b>。OB1回＝2打。まずは「OBゼロ」を単独の目標にしましょう。");
+  if(a.bogeyOnRate < 70) msgs.push("ボギーオン率 <b>"+a.bogeyOnRate+"%</b>（目標70%）。パーオンではなくボギーオンを狙う設計にすると、ダブルボギーが確実に減ります。");
+  if(a.scrRate != null) msgs.push("パーオンを外したホールの寄せワン成功率は <b>"+a.scrRate+"%</b>。50y以内のアプローチを1本のクラブに絞ると安定します。");
+  var p3 = pg.filter(function(o){ return o.par === 3 && o.oneRate != null; })[0];
+  if(p3 && p3.n >= 4) msgs.push("Par3のワンオン率は <b>"+Math.round(p3.oneRate)+"%</b>（平均 "+fmt(p3.avg,2)+"打）。"
+    + (p3.oneRate < 30 ? "ピンではなくグリーン中央を狙い、番手を1つ上げて手前のトラブルを消すと確率が上がります。"
+                       : "この精度は維持したいところです。無理にピンを狙わず、今の狙い方を続けてください。"));
+  if(a.avgFront != null && a.avgBack != null){
+    var diff = a.avgBack - a.avgFront;
+    if(Math.abs(diff) >= 1.5) msgs.push(diff > 0
+      ? "後半が前半より平均 <b>"+fmt(diff,1)+"打</b>悪化。体力配分の問題です。前半から歩幅と呼吸を一定に、9番ホール後に必ず水分と補食を。"
+      : "前半が後半より平均 <b>"+fmt(-diff,1)+"打</b>悪い＝立ち上がりが遅いタイプ。スタート30分前のパットとアプローチのウォームアップを固定化しましょう。");
+  }
+  var cs = allClubStats();
+  if(cs.length >= 2){
+    for(var i=0;i<cs.length-1;i++){
+      var gap = cs[i].useAvg - cs[i+1].useAvg;
+      if(gap >= 25){ msgs.push("<b>"+cs[i].club+"（"+Math.round(cs[i].useAvg)+"y）と "+cs[i+1].club+"（"+Math.round(cs[i+1].useAvg)+"y）の間に "+Math.round(gap)+"y の空白</b>があります。この距離が残ると必ず無理をすることになります。番手の見直しを。"); break; }
+    }
+    var wob = cs.filter(function(c){ return c.n >= 5 && c.sd >= 15; });
+    if(wob.length) msgs.push("<b>"+wob[0].club+"</b> はばらつきが ±"+Math.round(wob[0].sd)+"y と大きめ。距離を計算に入れる場面では、平均ではなく短い方（"+Math.round(wob[0].useAvg - wob[0].sd)+"y）を基準にすると大叩きが減ります。");
+  } else {
+    msgs.push("クラブ別の飛距離データがまだ足りません。ラウンド中に1ホール1球でも計測すると、番手選択の迷いが消えます（各クラブ5球で傾向が見えます）。");
+  }
+  out += '<div class="card sec"><h3 style="font-size:17px;margin-bottom:10px">数字が示していること</h3><ul class="coach">'
+    + msgs.slice(0,6).map(function(m){ return '<li>'+m+'</li>'; }).join("") + '</ul>'
+    + '<h3 style="font-size:17px;margin:18px 0 10px">次のラウンドの重点3つ</h3><ul class="coach">'
+    + [ (a.obPerRound > 1 ? "OBゼロ。曲がる側を空けて構え、8割スイング。" : "ティーショットは常に8割の力で振り抜く。"),
+        (weak[0] ? weak[0].hole + "番ホールは刻む。パーを狙わずボギーで上がる。" : "苦手ホールは刻んでボギーで上がる。"),
+        (a.avgPutts > 30 ? "3パットゼロ。ファーストパットは必ずカップを50cmオーバーさせる。" : "同じルーティンを18ホール最後まで崩さない。") ]
+      .map(function(m){ return '<li>'+esc(m)+'</li>'; }).join("")
+    + '</ul></div>';
+  return out;
+}
+
+/* ============================ 画面：データ ============================ */
+function viewData(){
+  var out = '<div class="sec"><div class="sec-h"><span class="eyebrow">SAVE</span><h2>保存と書き出し</h2></div><div class="card grid">'
+    + '<div class="row">'
+    + (artifactApi ? '<button class="btn primary" data-act="cloud-save">クラウドに保存</button>' : '')
+    + '<button class="btn" data-act="dl-csv">スコアCSVを書き出す</button>'
+    + '<button class="btn" data-act="dl-shots">飛距離CSVを書き出す</button>'
+    + '<button class="btn ghost" data-act="dl-json">バックアップ(JSON)</button>'
+    + '<button class="btn ghost" data-act="copy-json">バックアップをコピー</button></div>'
+    + '<div id="jsonout"></div>'
+    + '<p class="hint">入力は自動でこの端末に保存されます。'
+    + (artifactApi ? '<b>「クラウドに保存」</b>を押すと、この手帳のページ自体にデータが焼き込まれ、別の端末で開いても同じデータが見られます（保存時にページが再読み込みされます）。' : '端末を替えるときは「バックアップをコピー」で移せます。')
+    + 'スコアCSVは既存のExcel分析表（aggregate_master）と同じ並びで書き出します。</p>'
+    + '</div></div>';
+
+  out += '<div class="sec"><div class="sec-h"><span class="eyebrow">DATA USAGE</span><h2>通信について</h2></div><div class="card grid">'
+    + '<div class="note"><b>このアプリは、起動時'+(artifactApi?'と「クラウドに保存」時':'')+'以外いっさい通信しません。</b>'
+    + '<div style="margin-top:6px">外部のフォントや画像を読み込まないため、ラウンド中の通信量はゼロです。'
+    + 'スコア入力・GPS計測・分析はすべて端末の中だけで動きます（GPSは衛星からの受信のみで通信を使いません）。</div></div>'
+    + '<div class="scroll-x"><table><thead><tr><th>場面</th><th>通信</th><th>目安</th></tr></thead><tbody>'
+    + '<tr><td>アプリを開く（起動）</td><td>あり</td><td>約 '+Math.round((PRISTINE.length + JSON.stringify({r:state.rounds,s:state.shots}).length)/1024)+' KB</td></tr>'
+    + '<tr><td>スコア入力・GPS計測・分析</td><td><b style="color:var(--good)">なし</b></td><td>0</td></tr>'
+    + (artifactApi ? '<tr><td>クラウドに保存（1回）</td><td>あり</td><td>約 '+Math.round((PRISTINE.length + JSON.stringify({r:state.rounds,s:state.shots}).length)/1024)+' KB</td></tr>' : '')
+    + '</tbody></table></div>'
+    + '<p class="hint">通信量をゼロにしたい場合は、電波のある場所でこのページを開いたあと<b>機内モード</b>にしてください。'
+    + 'GPSは機内モードでも使えます。ラウンド後に機内モードを解除して「クラウドに保存」を押せば、通信は前後の2回だけで済みます。</p>'
+    + '</div></div>';
+
+  out += '<div class="sec"><div class="sec-h"><span class="eyebrow">CLUBS</span><h2>クラブセット</h2></div><div class="card grid">'
+    + '<div class="chips">' + state.clubs.map(function(c){
+        return '<button data-act="del-club-name" data-v="'+esc(c)+'">'+esc(c)+' ×</button>';
+      }).join("") + '</div>'
+    + '<div class="row"><input type="text" id="newclub" placeholder="例：U6" style="max-width:180px">'
+    + '<button class="btn sm" data-act="add-club-name">クラブを追加</button></div>'
+    + '<p class="hint">バッグの中身に合わせて並べ替え・削除ができます（並び順＝入力チップの順番）。</p></div></div>';
+
+  out += '<div class="sec"><div class="sec-h"><span class="eyebrow">COURSES</span><h2>コース</h2></div><div class="card grid">'
+    + state.courses.map(function(c){
+        return '<div style="border-bottom:1px solid var(--grid);padding-bottom:10px">'
+          + '<div class="row" style="justify-content:space-between"><b>'+esc(c.name)+'</b>'
+          + '<span class="hint">'+c.pars.length+'ホール'+(c.loop>1?" × "+c.loop+"周":"")+'／Par '+c.pars.reduce(function(a,b){return a+b;},0)*(c.loop||1)+'</span></div>'
+          + '<div class="hint">Par: '+c.pars.join(" ・ ")+'</div></div>';
+      }).join("")
+    + '<div class="grid" style="gap:10px;border-top:1px solid var(--line);padding-top:14px">'
+    + '<div><label class="f">コース名</label><input type="text" id="cname" placeholder="例：〇〇カントリークラブ 東コース"></div>'
+    + '<div class="two"><div><label class="f">Par（スペース区切り）</label><input type="text" id="cpars" placeholder="4 4 3 5 4 4 3 4 5"></div>'
+    + '<div><label class="f">周回数（9H×2周なら 2）</label><input type="number" id="cloop" value="1" min="1" max="2"></div></div>'
+    + '<div><button class="btn" data-act="add-course">コースを追加</button></div></div></div></div>';
+
+  out += '<div class="sec"><div class="sec-h"><span class="eyebrow">RESTORE</span><h2>データの復元</h2></div><div class="card grid">'
+    + '<textarea id="importjson" placeholder="バックアップJSONを貼り付けてください"></textarea>'
+    + '<div class="row"><button class="btn" data-act="import">読み込む（既存データに追加）</button></div></div></div>';
+  return out;
+}
+
+/* ============================ CSV ============================ */
+function csvScores(){
+  var head = ["Round","Date","Course","Hole","Par","Score","Putts","FW_Attempt","FW_Hit","ParOn","BogeyOn","OB","Bunker","Penalty","OneOn","TeeClub","TeeResult","Clubs","Note"];
+  var rows = [head];
+  var sorted = state.rounds.slice().sort(function(a,b){ return a.date < b.date ? -1 : a.date > b.date ? 1 : 0; });
+  sorted.forEach(function(r, ri){
+    var rid = "R" + String(ri+1).padStart(2,"0");
+    r.holes.forEach(function(h, i){
+      if(!h.score) return;
+      rows.push([rid, r.date, r.courseName, i+1, h.par, h.score, h.putts||0, fwAttempt(h), fwHit(h),
+                 parOn(h), bogeyOn(h), h.ob||0, h.bunker||0, h.pen||0,
+                 h.par===3 ? oneOn(h) : "", h.teeClub||"", h.tee||"",
+                 (h.clubs||[]).join("-"), h.note||""]);
+    });
+  });
+  return rows.map(function(r){
+    return r.map(function(c){
+      c = String(c==null?"":c);
+      return /[",\n]/.test(c) ? '"'+c.replace(/"/g,'""')+'"' : c;
+    }).join(",");
+  }).join("\r\n");
+}
+function csvShots(){
+  var rows = [["Date","Time","Club","Yards","Meters","Accuracy_m","Course","Hole","Method"]];
+  state.shots.slice().sort(function(a,b){return a.ts-b.ts;}).forEach(function(s){
+    var d = new Date(s.ts);
+    rows.push([d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"),
+      String(d.getHours()).padStart(2,"0")+":"+String(d.getMinutes()).padStart(2,"0"),
+      s.club, Math.round(s.yards), Math.round(s.meters), s.acc?Math.round(s.acc):"", s.courseName||"", s.hole||"", methodLabel(s)]);
+  });
+  return rows.map(function(r){ return r.join(","); }).join("\r\n");
+}
+async function download(filename, text){
+  var data = "﻿" + text;
+  if(downloadsApi){
+    try{ await downloadsApi.save({filename:filename, data:data}); toast(filename + " を保存しました"); return; }
+    catch(e){ toast("保存はキャンセルされました"); return; }
+  }
+  try{
+    var blob = new Blob([data], {type:"text/plain;charset=utf-8"});
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement("a");
+    a.href = url; a.download = filename; document.body.appendChild(a); a.click();
+    setTimeout(function(){ URL.revokeObjectURL(url); a.remove(); }, 1000);
+    toast(filename + " を保存しました");
+    return;
+  }catch(e){}
+  try{ await navigator.clipboard.writeText(text); toast("ダウンロードできないため、内容をコピーしました"); }
+  catch(e2){ toast("ダウンロードを利用できません"); }
+}
+
+/* ============================ クラウド保存 ============================ */
+async function cloudSave(){
+  if(!artifactApi){ toast("この画面ではクラウド保存が使えません（端末には保存済みです）"); return; }
+  var payload = {settings:state.settings, clubs:state.clubs, courses:state.courses, rounds:state.rounds, shots:state.shots, savedAt:Date.now()};
+  var json = JSON.stringify(payload).replace(/</g, "\\u003c").replace(/\*\//g, "*\\/");
+  var html = PRISTINE.replace(/\/\*DATA-START\*\/[\s\S]*?\/\*DATA-END\*\//, "/*DATA-START*/" + json + "/*DATA-END*/");
+  toast("保存しています…");
+  try{
+    await artifactApi.publish(html);
+    dirty = false;
+  }catch(err){
+    var code = err && err.code;
+    if(code === "conflict") toast("別の端末で先に保存されました。読み込み直してからもう一度お試しください");
+    else if(code === "not_writer" || code === "not_granted") toast("このページには保存できません（閲覧のみ）");
+    else toast("保存できませんでした：" + (err && err.message ? err.message : "不明なエラー"));
+  }
+}
+function paintCloudStatus(){
+  var el = document.getElementById("cloudstat");
+  if(!el) return;
+  if(!artifactApi){ el.innerHTML = '<span class="dot off"></span>端末に保存中'; return; }
+  el.innerHTML = dirty ? '<span class="dot" style="background:var(--warn)"></span>未保存の変更あり'
+                       : '<span class="dot"></span>クラウド保存済み';
+}
+
+/* ============================ ルーティング ============================ */
+function render(){
+  var v = document.getElementById("view");
+  var t = state.ui.tab;
+  v.innerHTML = t === "home" ? viewHome()
+              : t === "round" ? viewRound()
+              : t === "gps" ? viewGps()
+              : t === "analysis" ? viewAnalysis()
+              : viewData();
+  Array.prototype.forEach.call(document.querySelectorAll("#tabs button"), function(b){
+    b.setAttribute("aria-current", b.dataset.tab === t ? "true" : "false");
+  });
+  paintCloudStatus();
+  if(t === "gps") paintDiag();
+  if(!lockScroll) window.scrollTo({top:0, behavior:"instant"});
+  lockScroll = false;
+}
+var lockScroll = false;
+function go(tab){ if(tab !== "gps") stopLive(); state.ui.tab = tab; render(); }
+
+document.getElementById("tabs").addEventListener("click", function(e){
+  var b = e.target.closest("button[data-tab]"); if(!b) return;
+  go(b.dataset.tab);
+});
+
+/* ---- ツールチップ ---- */
+var tip = document.getElementById("tip");
+document.addEventListener("mouseover", function(e){
+  var el = e.target.closest("[data-tip]"); if(!el) return;
+  tip.textContent = el.getAttribute("data-tip"); tip.hidden = false;
+});
+document.addEventListener("mousemove", function(e){
+  if(tip.hidden) return;
+  var x = Math.min(e.clientX + 14, window.innerWidth - 230);
+  tip.style.left = x + "px"; tip.style.top = (e.clientY + 16) + "px";
+});
+document.addEventListener("mouseout", function(e){
+  if(e.target.closest("[data-tip]")) tip.hidden = true;
+});
+
+/* ---- 操作 ---- */
+document.getElementById("view").addEventListener("click", async function(e){
+  var b = e.target.closest("[data-act]"); if(!b) return;
+  var act = b.dataset.act, r = currentRound(), h = r ? r.holes[state.ui.hole] : null;
+
+  if(act === "new-round"){ state.ui.roundId = null; go("round"); return; }
+  if(act === "create-round"){
+    newRound(document.getElementById("new-course").value, document.getElementById("new-date").value);
+    render(); return;
+  }
+  if(act === "resume"){ state.ui.roundId = b.dataset.id;
+    var rr = currentRound(); var next = rr.holes.findIndex(function(x){ return !x.score; });
+    state.ui.hole = next < 0 ? 0 : next; go("round"); return; }
+  if(act === "close-round"){ state.ui.roundId = null; render(); return; }
+  if(act === "del-round"){
+    if(!confirm("このラウンドを削除します。よろしいですか？")) return;
+    state.rounds = state.rounds.filter(function(x){ return x.id !== b.dataset.id; });
+    markDirty(); render(); return;
+  }
+  if(act === "go-analysis"){ go("analysis"); return; }
+  if(act === "go-gps"){ go("gps"); return; }
+  if(act === "go-data"){ go("data"); return; }
+  if(act === "measure-here"){ go("gps"); return; }
+
+  if(r && h){
+    if(act === "prev-hole"){ state.ui.hole = Math.max(0, state.ui.hole-1); render(); return; }
+    if(act === "next-hole"){ state.ui.hole = Math.min(r.holes.length-1, state.ui.hole+1); render(); return; }
+    if(act === "inc" || act === "dec"){
+      var f = b.dataset.f, d2 = act === "inc" ? 1 : -1;
+      if(f === "score" && !h.score && d2 > 0) h.score = h.par; else h[f] = Math.max(0, (h[f]||0) + d2);
+      if(f === "score" && h.score && !h.putts) h.putts = 2;
+      if(f === "score" && h.putts > h.score) h.putts = h.score;
+      if(f === "putts" && h.putts > h.score) h.putts = h.score;
+      r.updatedAt = Date.now(); markDirty(); render(); return;
+    }
+    if(act === "quick-score"){
+      h.score = Number(b.dataset.v); if(!h.putts) h.putts = 2;
+      if(h.putts > h.score) h.putts = h.score;
+      r.updatedAt = Date.now(); markDirty(); render(); return;
+    }
+    if(act === "tee-club"){ h.teeClub = (h.teeClub === b.dataset.v) ? "" : b.dataset.v;
+      if(h.teeClub && !h.clubs.length) h.clubs = [h.teeClub];
+      r.updatedAt = Date.now(); markDirty(); render(); return; }
+    if(act === "tee-res"){ h.tee = b.dataset.v;
+      if(h.tee === "OB" && !h.ob) h.ob = 1;
+      if(h.tee === "P" && !h.pen) h.pen = 1;
+      if(h.tee === "B" && !h.bunker) h.bunker = 1;
+      r.updatedAt = Date.now(); markDirty(); render(); return; }
+    if(act === "add-club"){ h.clubs.push(b.dataset.v); r.updatedAt = Date.now(); markDirty(); render(); return; }
+    if(act === "rm-club"){ h.clubs.splice(Number(b.dataset.i), 1); r.updatedAt = Date.now(); markDirty(); render(); return; }
+  }
+
+  /* --- GPS --- */
+  if(act === "gps-club"){ state.ui.gpsClub = b.dataset.v; lockScroll = true; render(); return; }
+  if(act === "gps-mode"){ stopLive(); gpsFrom = null; gpsMode = b.dataset.v; lockScroll = true; render(); return; }
+  if(act === "gps-reset"){ gpsFrom = null; lastMeasure = null; lockScroll = true; render(); return; }
+  if(act === "live-fix"){ confirmLive(); return; }
+  if(act === "copy-diag"){
+    var t = diagText();
+    var box = document.getElementById("diagtext");
+    if(box) box.innerHTML = '<textarea readonly style="margin-top:8px;font-size:12px;min-height:150px">'+esc(t)+'</textarea>'
+      + '<p class="hint">この内容をコピーして、Claudeの会話に貼り付けてください。</p>';
+    try{ await navigator.clipboard.writeText(t); toast("診断結果をコピーしました"); }
+    catch(e){ toast("下の枠の文字を選択してコピーしてください"); }
+    return;
+  }
+  if(act === "copy-url"){
+    var inp = document.getElementById("selfurl");
+    try{
+      if(navigator.clipboard && navigator.clipboard.writeText){ await navigator.clipboard.writeText(location.href); toast("URLをコピーしました"); }
+      else { inp.select(); document.execCommand("copy"); toast("URLをコピーしました"); }
+    }catch(e){ if(inp){ inp.select(); } toast("コピーできませんでした。URLを長押しして選択してください"); }
+    return;
+  }
+  if(act === "paste-a" || act === "paste-b"){
+    var tgt = document.getElementById(act === "paste-a" ? "cd-a" : "cd-b");
+    try{
+      var txt = await navigator.clipboard.readText();
+      if(tgt){ tgt.value = txt; paintCoords(); }
+      if(!parseLatLon(txt)) toast("座標として読み取れませんでした。数字を直接入れても構いません");
+    }catch(e){
+      toast("貼り付けできませんでした。入力欄を長押しして「ペースト」を選んでください");
+      if(tgt) tgt.focus();
+    }
+    return;
+  }
+  if(act === "save-coords"){
+    var dc = coordDist();
+    if(dc == null){ toast("2地点の座標を貼り付けてください"); return; }
+    if(dc < 3){ toast("2地点がほぼ同じ位置です"); return; }
+    recordShot(dc/YD, "coords", null); return;
+  }
+  if(act === "save-yard"){
+    var vb = Number((document.getElementById("yd-before")||{}).value);
+    var va = Number((document.getElementById("yd-after")||{}).value);
+    if(!vb || vb <= 0){ toast("打つ前の残り距離を入れてください"); return; }
+    if(isNaN(va) || va < 0){ toast("打った後の残り距離を入れてください"); return; }
+    var dy = vb - va;
+    if(dy <= 0){ toast("打った後の距離のほうが大きくなっています"); return; }
+    recordShot(dy, "yard", null); return;
+  }
+  if(act === "save-steps"){
+    var stp = Number((document.getElementById("st-steps")||{}).value);
+    var strd = Number((document.getElementById("st-stride")||{}).value) || state.settings.stride;
+    if(!stp || stp <= 0){ toast("歩数を入れてください"); return; }
+    state.settings.stride = strd;
+    recordShot(stp*strd/100/YD, "steps", null); return;
+  }
+  if(act === "live-cancel"){ stopLive(); live.from = null; live.cur = null; live.dist = 0; lockScroll = true; render(); return; }
+  if(act === "open-tab"){
+    try{ window.open(location.href, "_blank", "noopener"); }
+    catch(e){ toast("新しいタブを開けませんでした"); }
+    return;
+  }
+  if(act === "gps-test"){
+    var to = document.getElementById("testout");
+    if(to) to.innerHTML = '<p class="hint">測位を試しています…（最大12秒）</p>';
+    try{
+      var f = await getFix(12000, 10);
+      if(to) to.innerHTML = '<div class="note"><b>測位できました</b><div class="hint">緯度 '+f.lat.toFixed(5)+' ／ 経度 '+f.lon.toFixed(5)+' ／ 誤差 ±'+Math.round(f.acc)+'m</div></div>';
+    }catch(err2){
+      if(to) to.innerHTML = "";
+      gpsError(err2);
+      var g = document.getElementById("gpsout");
+      if(to && g) to.innerHTML = g.innerHTML;
+    }
+    return;
+  }
+  if(act === "manual-shot"){
+    var y = prompt(state.ui.gpsClub + " の飛距離（ヤード）を入力してください");
+    if(y && !isNaN(Number(y))){
+      lastMeasure = {club:state.ui.gpsClub, yards:Number(y), meters:Number(y)*YD, acc:0, method:"manual"};
+      lockScroll = true; render();
+    }
+    return;
+  }
+  if(act === "save-shot"){
+    if(!lastMeasure) return;
+    var rr2 = currentRound();
+    state.shots.push({
+      id: uid("s"), ts: Date.now(), club: lastMeasure.club, yards: lastMeasure.yards,
+      meters: lastMeasure.meters, acc: lastMeasure.acc, method: lastMeasure.method || "gps",
+      roundId: rr2 ? rr2.id : null, courseName: rr2 ? rr2.courseName : "", hole: rr2 ? state.ui.hole+1 : null,
+      updatedAt: Date.now()
+    });
+    lastMeasure = null; gpsFrom = null; markDirty(); lockScroll = true; render(); toast("記録しました");
+    return;
+  }
+  if(act === "drop-shot"){ lastMeasure = null; lockScroll = true; render(); return; }
+  if(act === "del-shot"){
+    state.shots = state.shots.filter(function(s){ return s.id !== b.dataset.id; });
+    markDirty(); render(); return;
+  }
+
+  /* --- データ管理 --- */
+  if(act === "cloud-save"){ await cloudSave(); return; }
+  if(act === "dl-csv"){ await download("golf_scores.csv", csvScores()); return; }
+  if(act === "dl-shots"){ await download("club_distances.csv", csvShots()); return; }
+  if(act === "copy-json"){
+    var js = JSON.stringify({settings:state.settings, clubs:state.clubs, courses:state.courses, rounds:state.rounds, shots:state.shots});
+    var box2 = document.getElementById("jsonout");
+    if(box2) box2.innerHTML = '<textarea readonly style="margin-top:8px;font-size:11px;min-height:120px">'+esc(js)+'</textarea>'
+      + '<p class="hint">別の端末やURLに移すときは、この内容を「データの復元」欄に貼り付けてください。</p>';
+    try{ await navigator.clipboard.writeText(js); toast("バックアップをコピーしました"); }
+    catch(e){ toast("下の枠の文字を選択してコピーしてください"); }
+    return;
+  }
+  if(act === "dl-json"){
+    await download("fairway_backup.json", JSON.stringify({clubs:state.clubs, courses:state.courses, rounds:state.rounds, shots:state.shots}, null, 1));
+    return;
+  }
+  if(act === "add-club-name"){
+    var nc = document.getElementById("newclub").value.trim();
+    if(nc && state.clubs.indexOf(nc) < 0){ state.clubs.push(nc); markDirty(); render(); }
+    return;
+  }
+  if(act === "del-club-name"){
+    state.clubs = state.clubs.filter(function(c){ return c !== b.dataset.v; });
+    markDirty(); render(); return;
+  }
+  if(act === "add-course"){
+    var nm = document.getElementById("cname").value.trim();
+    var ps = document.getElementById("cpars").value.trim().split(/[\s,、]+/).map(Number).filter(function(n){ return n>=3 && n<=6; });
+    var lp = Math.max(1, Math.min(2, Number(document.getElementById("cloop").value)||1));
+    if(!nm || ps.length < 9){ toast("コース名と9つ以上のParを入力してください"); return; }
+    state.courses.push({id:uid("c"), name:nm, loop:lp, pars:ps, yards:ps.map(function(){return 0;}), updatedAt:Date.now()});
+    markDirty(); render(); toast("コースを追加しました"); return;
+  }
+  if(act === "import"){
+    try{
+      var d3 = JSON.parse(document.getElementById("importjson").value);
+      state.rounds = mergeById(state.rounds, d3.rounds);
+      state.shots = mergeById(state.shots, d3.shots);
+      state.courses = mergeById(state.courses, d3.courses);
+      if(d3.clubs) state.clubs = d3.clubs;
+      sortRounds();
+      markDirty(); render(); toast("読み込みました");
+    }catch(err){ toast("JSONを読み取れませんでした"); }
+    return;
+  }
+});
+
+/* ---- GPSボタン（別ハンドラ：非同期） ---- */
+document.getElementById("view").addEventListener("click", async function(e){
+  if(!e.target.closest("#gpsbtn")) return;
+  var btn = document.getElementById("gpsbtn");
+  if(gpsBusy) return;
+  gpsBusy = true;
+  try{
+    if(gpsMode === "live"){ await startLive(); return; }
+    btn.disabled = true;
+    var prev = btn.textContent;
+    btn.textContent = "位置を取得中…";
+    try{
+      var fix = await getFix(12000, 8);
+      if(!gpsFrom){
+        gpsFrom = fix;
+        render();
+      } else {
+        var m = haversine(gpsFrom, fix);
+        lastMeasure = {club:state.ui.gpsClub, meters:m, yards:m/YD, acc:Math.max(gpsFrom.acc, fix.acc)};
+        gpsFrom = null;
+        render();
+      }
+    }catch(err){
+      btn.textContent = prev;
+      gpsError(err);
+    }
+  }finally{
+    gpsBusy = false;
+    var b2 = document.getElementById("gpsbtn"); if(b2) b2.disabled = false;
+  }
+});
+
+/* ---- 入力系 ---- */
+document.getElementById("view").addEventListener("change", function(e){
+  if(e.target.id === "acourse"){ state.ui.analysisCourse = e.target.value; render(); return; }
+  if(e.target.id === "round-date"){
+    var r = currentRound(); if(!r) return;
+    var v = e.target.value;
+    if(!/^\d{4}-\d{2}-\d{2}$/.test(v)){ toast("日付を選び直してください"); return; }
+    r.date = v; r.updatedAt = Date.now(); sortRounds(); markDirty();
+    lockScroll = true; render(); toast("プレー日を "+v+" にしました");
+    return;
+  }
+});
+document.getElementById("view").addEventListener("input", function(e){
+  if(e.target.dataset && e.target.dataset.act === "cdcalc"){ paintCoords(); return; }
+  if(e.target.dataset && e.target.dataset.act === "ydcalc"){
+    var vb = Number((document.getElementById("yd-before")||{}).value);
+    var va = Number((document.getElementById("yd-after")||{}).value);
+    var o = document.getElementById("ydcalc");
+    if(o) o.textContent = (vb && !isNaN(va) && vb - va > 0) ? Math.round(vb - va) : "–";
+    return;
+  }
+  if(e.target.dataset && e.target.dataset.act === "stcalc"){
+    var stp = Number((document.getElementById("st-steps")||{}).value);
+    var strd = Number((document.getElementById("st-stride")||{}).value);
+    var o2 = document.getElementById("stcalc");
+    if(o2) o2.textContent = (stp > 0 && strd > 0) ? Math.round(stp*strd/100/YD) : "–";
+    if(strd > 0){ state.settings.stride = strd; saveLocal(); }
+    return;
+  }
+  var el = e.target.closest('[data-act="note"]'); if(!el) return;
+  var r = currentRound(); if(!r) return;
+  r.holes[state.ui.hole].note = el.value; r.updatedAt = Date.now(); saveLocal(); dirty = true;
+});
+
+/* ============================ 起動 ============================ */
+bootState();
+render();
+
+(async function(){
+  if(!window.claude || !window.claude.use) { paintCloudStatus(); return; }
+  try{ artifactApi = await window.claude.use("artifact"); }catch(e){ artifactApi = null; }
+  try{ downloadsApi = await window.claude.use("downloads"); }catch(e){ downloadsApi = null; }
+  paintCloudStatus();
+})();
+
+window.addEventListener("beforeunload", function(e){
+  if(dirty && artifactApi){ e.preventDefault(); e.returnValue = ""; }
+});
+</script>
+
+</body>
+</html>
