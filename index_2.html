@@ -256,7 +256,8 @@ var PRISTINE = "<!doctype html>\n" + document.documentElement.outerHTML;
 
 /* ============================ 定数 ============================ */
 var YD = 0.9144; // 1yd = 0.9144m
-var DEFAULT_CLUBS = ["1W","3W","5W","7W","9W","6U","7U","8U","PU","PW","GW","SW"];
+var DEFAULT_CLUBS = ["1W","3W","5W","7W","9W","6U","7U","8U","PU","PW","GW","SW","CP"];
+var PREV_CLUBS_V2 = ["1W","3W","5W","7W","9W","6U","7U","8U","PU","PW","GW","SW"];
 var OLD_DEFAULT_CLUBS = ["1W","3W","5W","7W","U4","U5","6I","7I","8I","9I","PW","AW","SW","PT"];
 var TEE_RESULTS = [
   {k:"FW", n:"フェアウェイ", sn:"キープ"},{k:"L", n:"左ラフ", sn:"左"},{k:"R", n:"右ラフ", sn:"右"},
@@ -332,6 +333,7 @@ function bootState(){
   state.clubs = (local && local.clubs) || (base.clubs) || DEFAULT_CLUBS.slice();
   // 旧初期セットのままなら、新しいクラブセットに置き換える
   if(state.clubs.join(",") === OLD_DEFAULT_CLUBS.join(",")) state.clubs = DEFAULT_CLUBS.slice();
+  if(state.clubs.join(",") === PREV_CLUBS_V2.join(",")) state.clubs = DEFAULT_CLUBS.slice();
   sortRounds();
 }
 
