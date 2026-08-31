@@ -283,7 +283,7 @@ var state = {
   courses: SEED_COURSES.map(function(c){return JSON.parse(JSON.stringify(c));}),
   rounds: [],
   shots: [],
-  ui: {tab:"home", roundId:null, hole:0, field:"score", gpsClub:"1W", analysisCourse:null}
+  ui: {tab:"home", roundId:null, hole:0, field:"score", shotNo:1, gpsClub:"1W", analysisCourse:null}
 };
 var artifactApi = null, downloadsApi = null, dirty = false;
 
@@ -760,41 +760,55 @@ function measureHtml(){
   var tracking = live.watchId != null;
   var env = gpsEnv();
   var blocked = env.framed && (env.policy === false || state.settings.gpsBlocked);
+  var mine = holeShots();
+  var n = state.ui.shotNo || 1;
   var out = '<div class="row" style="justify-content:space-between"><label class="f" style="margin:0">飛距離計測</label>'
-    + '<span class="hint">'+(r?(idx+1)+'番ホールに記録':'ラウンド未選択')+'</span></div>';
+    + '<span class="hint">'+(r?(idx+1)+'番ホール':'ラウンド未選択')+'</span></div>';
   if(blocked){
     out += '<div class="note" style="border-color:var(--crit);margin-top:8px"><b>この画面ではGPSが使えません</b>'
       + '<div class="hint" style="margin-top:4px">埋め込み表示のため位置情報がブロックされています。単独URLで開くか、下の手入力をお使いください。</div></div>';
   }
-  out += '<div class="chips" style="margin:10px 0">'
+  out += '<div class="blk" style="margin-top:10px"><label class="f">何打目の計測ですか</label><div class="chips">'
+    + [1,2,3,4,5,6].map(function(i){
+        return '<button data-act="m-shotno" data-v="'+i+'" aria-pressed="'+(n===i)+'">'+i+'打目</button>';
+      }).join('') + '</div></div>';
+  out += '<div class="blk"><label class="f">クラブ</label><div class="chips">'
     + state.clubs.filter(function(c){ return c!=='PT'; }).map(function(c){
         return '<button data-act="m-club" data-v="'+esc(c)+'" aria-pressed="'+(state.ui.gpsClub===c)+'">'+esc(c)+'</button>';
-      }).join('') + '</div>';
+      }).join('') + '</div></div>';
+
   if(lastMeasure){
-    out += '<div class="mdist">'+Math.round(lastMeasure.yards)+'<span>yd</span></div>'
-      + '<p class="hint" style="text-align:center">'+esc(lastMeasure.club)+' ／ '+Math.round(lastMeasure.meters)+'m'
+    out += '<div class="mdist" style="margin-top:12px">'+Math.round(lastMeasure.yards)+'<span>yd</span></div>'
+      + '<p class="hint" style="text-align:center">'+n+'打目 ／ '+esc(lastMeasure.club)+' ／ '+Math.round(lastMeasure.meters)+'m'
       + (lastMeasure.acc?' ／ 誤差 ±'+Math.round(lastMeasure.acc)+'m':'')+'</p>'
       + '<div class="navrow"><button data-act="m-drop">破棄する</button>'
       + '<button class="primary" data-act="m-save">このホールに保存</button></div>';
   } else if(tracking){
-    out += '<div class="mdist"><b id="m-yd">'+Math.round(live.dist/YD)+'</b><span>yd</span></div>'
+    out += '<div class="mdist" style="margin-top:12px"><b id="m-yd">'+Math.round(live.dist/YD)+'</b><span>yd</span></div>'
       + '<p class="hint" style="text-align:center" id="m-meta">'+Math.round(live.dist)+'m ／ 誤差 ±'+Math.round(live.cur?live.cur.acc:0)+'m</p>'
-      + '<button class="mbtn stop" data-act="m-stop">② ボール地点で計測終了</button>'
+      + '<button class="mbtn stop" data-act="m-stop">② ボール地点で計測終了（'+n+'打目）</button>'
       + '<div class="row" style="margin-top:8px"><button class="btn sm ghost" data-act="m-cancel">中止</button></div>';
   } else {
-    out += '<button class="mbtn" id="m-start" data-act="m-start">① この位置から計測開始</button>'
-      + '<div class="row" style="margin-top:8px"><button class="btn sm ghost" data-act="m-manual">手入力</button>'
+    if(chainFrom && n > 1){
+      out += '<button class="mbtn" data-act="m-continue" style="margin-top:12px">▶ ここから続けて '+n+'打目を計測</button>'
+        + '<p class="hint" style="text-align:center;margin:6px 0 0">前のショットの着地点（＝今いる場所）を開始地点として使います。<br>移動してしまった場合は下の①をお使いください。</p>'
+        + '<button class="btn" style="width:100%;margin-top:10px" data-act="m-start">① 今いる位置から測り直す</button>';
+    } else {
+      out += '<button class="mbtn" id="m-start" data-act="m-start" style="margin-top:12px">① この位置から'+n+'打目を計測</button>';
+    }
+    out += '<div class="row" style="margin-top:8px"><button class="btn sm ghost" data-act="m-manual">手入力</button>'
       + '<button class="btn sm ghost" data-act="go-gps">計測タブを開く</button></div>'
       + '<div id="m-err"></div>';
   }
-  var mine = r ? state.shots.filter(function(x){ return x.roundId === r.id && x.hole === idx+1; }) : [];
+
   if(mine.length){
     out += '<div class="blk"><label class="f">このホールの計測</label>'
       + mine.map(function(x){
-          return '<div class="shotrow"><span><b>'+esc(x.club)+'</b>　'+Math.round(x.yards)+' yd'
+          return '<div class="shotrow"><span><b>'+(x.shotNo||1)+'打目</b>　'+esc(x.club)+'　'+Math.round(x.yards)+' yd'
             + '<span class="hint">　'+esc(methodLabel(x))+'</span></span>'
             + '<button class="btn sm danger" data-act="del-shot" data-id="'+x.id+'">削除</button></div>';
-        }).join('') + '</div>';
+        }).join('')
+      + '<p class="hint" style="margin-top:6px">合計 '+Math.round(mine.reduce(function(a,x){return a+x.yards;},0))+' yd</p></div>';
   }
   return out;
 }
@@ -826,6 +840,7 @@ function refreshGps(){
 var gpsFrom = null, gpsBusy = false, lastMeasure = null;
 var gpsMode = "live"; // "live" = 歩いて計測 / "tap" = 2点タップ
 var live = {watchId:null, from:null, cur:null, dist:0, best:null, err:null};
+var chainFrom = null; // 前のショットの着地点（次のショットの開始地点として引き継ぐ）
 function haversine(a, b){
   var R = 6371000, toR = Math.PI/180;
   var dLat = (b.lat-a.lat)*toR, dLon = (b.lon-a.lon)*toR;
@@ -1032,11 +1047,22 @@ function methodLabel(s){
   if(s.method === "manual") return "手入力";
   return s.acc ? "GPS ±"+Math.round(s.acc)+"m" : "手入力";
 }
+function resetShotNo(){
+  stopLive(); chainFrom = null; lastMeasure = null;
+  state.ui.shotNo = Math.min(6, holeShots().length + 1);
+}
+function holeShots(){
+  var r = currentRound();
+  if(!r) return [];
+  var idx = state.ui.hole;
+  return state.shots.filter(function(x){ return x.roundId === r.id && x.hole === idx+1; })
+                    .sort(function(a,b){ return (a.shotNo||0) - (b.shotNo||0) || a.ts - b.ts; });
+}
 function recordShot(yards, method, acc){
   var rr = currentRound();
   state.shots.push({
     id: uid("s"), ts: Date.now(), club: state.ui.gpsClub, yards: yards, meters: yards*YD,
-    acc: acc || null, method: method, roundId: rr ? rr.id : null,
+    acc: acc || null, method: method, roundId: rr ? rr.id : null, shotNo: state.ui.shotNo || 1,
     courseName: rr ? rr.courseName : "", hole: rr ? state.ui.hole+1 : null, updatedAt: Date.now()
   });
   markDirty();
@@ -1192,12 +1218,13 @@ function viewGps(){
       + '<p class="hint" style="margin-top:8px">実用平均＝外れ値（IQR法）を除いた平均。番手差が25y以上あるとクラブの「穴」、8y以下だと番手の重複が疑われます。</p>'
       + '</div></div>';
     out += '<div class="sec"><div class="sec-h"><span class="eyebrow">LOG</span><h2>計測ログ</h2></div><div class="card scroll-x"><table>'
-      + '<thead><tr><th>日時</th><th>クラブ</th><th>ヤード</th><th>m</th><th>計測方法</th><th>ホール</th><th></th></tr></thead><tbody>'
+      + '<thead><tr><th>日時</th><th>クラブ</th><th>ヤード</th><th>m</th><th>計測方法</th><th>ホール</th><th>打数</th><th></th></tr></thead><tbody>'
       + state.shots.slice().sort(function(a,b){return b.ts-a.ts;}).slice(0,40).map(function(s){
           var d = new Date(s.ts);
           return '<tr><td>'+(d.getMonth()+1)+"/"+d.getDate()+" "+String(d.getHours()).padStart(2,"0")+":"+String(d.getMinutes()).padStart(2,"0")+'</td>'
             + '<td>'+esc(s.club)+'</td><td><b>'+Math.round(s.yards)+'</b></td><td>'+Math.round(s.meters)+'</td>'
             + '<td>'+esc(methodLabel(s))+'</td><td>'+(s.hole?s.hole+"番":"–")+'</td>'
+            + '<td>'+(s.shotNo?s.shotNo+"打目":"–")+'</td>'
             + '<td><button class="btn sm danger" data-act="del-shot" data-id="'+s.id+'">削除</button></td></tr>';
         }).join("")
       + '</tbody></table></div></div>';
@@ -1418,12 +1445,12 @@ function csvScores(){
   }).join("\r\n");
 }
 function csvShots(){
-  var rows = [["Date","Time","Club","Yards","Meters","Accuracy_m","Course","Hole","Method"]];
+  var rows = [["Date","Time","Club","Yards","Meters","Accuracy_m","Course","Hole","ShotNo","Method"]];
   state.shots.slice().sort(function(a,b){return a.ts-b.ts;}).forEach(function(s){
     var d = new Date(s.ts);
     rows.push([d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"),
       String(d.getHours()).padStart(2,"0")+":"+String(d.getMinutes()).padStart(2,"0"),
-      s.club, Math.round(s.yards), Math.round(s.meters), s.acc?Math.round(s.acc):"", s.courseName||"", s.hole||"", methodLabel(s)]);
+      s.club, Math.round(s.yards), Math.round(s.meters), s.acc?Math.round(s.acc):"", s.courseName||"", s.hole||"", s.shotNo||"", methodLabel(s)]);
   });
   return rows.map(function(r){ return r.join(","); }).join("\r\n");
 }
@@ -1524,7 +1551,7 @@ document.getElementById("view").addEventListener("click", async function(e){
   }
   if(act === "resume"){ state.ui.roundId = b.dataset.id;
     var rr = currentRound(); var next = rr.holes.findIndex(function(x){ return !x.score; });
-    state.ui.hole = next < 0 ? 0 : next; state.ui.field = "score"; go("round");
+    state.ui.hole = next < 0 ? 0 : next; state.ui.field = "score"; go("round"); resetShotNo();
     setTimeout(scrollTabIntoView, 60); return; }
   if(act === "close-round"){ state.ui.roundId = null; render(); return; }
   if(act === "del-round"){
@@ -1540,13 +1567,13 @@ document.getElementById("view").addEventListener("click", async function(e){
   if(r && h){
     if(act === "prev-hole" || act === "next-hole"){
       state.ui.hole = act === "prev-hole" ? Math.max(0, state.ui.hole-1) : Math.min(r.holes.length-1, state.ui.hole+1);
-      state.ui.field = "score";
+      state.ui.field = "score"; resetShotNo();
       patchHole(); patchMeasure(); scrollTabIntoView();
       window.scrollTo({top:0, behavior:"smooth"});
       return;
     }
     if(act === "hole-tab"){
-      state.ui.hole = Number(b.dataset.i); state.ui.field = "score";
+      state.ui.hole = Number(b.dataset.i); state.ui.field = "score"; resetShotNo();
       patchHole(); patchMeasure(); scrollTabIntoView();
       return;
     }
@@ -1574,7 +1601,7 @@ document.getElementById("view").addEventListener("click", async function(e){
       h.teeClub = (h.teeClub === b.dataset.v) ? "" : b.dataset.v;
       if(h.teeClub){
         if(!h.clubs.length) h.clubs = [h.teeClub];
-        state.ui.gpsClub = h.teeClub;
+        if((state.ui.shotNo || 1) === 1) state.ui.gpsClub = h.teeClub;
       }
       r.updatedAt = Date.now(); markDirty(); patchHole(); patchMeasure(); return;
     }
@@ -1618,7 +1645,8 @@ document.getElementById("view").addEventListener("click", async function(e){
     if(act === "m-stop"){
       if(live.watchId == null) return;
       lastMeasure = {club: state.ui.gpsClub, meters: live.dist, yards: live.dist/YD,
-                     acc: Math.max(live.from?live.from.acc:0, live.cur?live.cur.acc:0), method:"gps"};
+                     acc: Math.max(live.from?live.from.acc:0, live.cur?live.cur.acc:0), method:"gps",
+                     endFix: live.cur};
       stopLive(); live.from = null; live.cur = null; live.dist = 0;
       patchMeasure(); return;
     }
@@ -1627,8 +1655,24 @@ document.getElementById("view").addEventListener("click", async function(e){
     if(act === "m-save"){
       if(!lastMeasure) return;
       recordShot(lastMeasure.yards, lastMeasure.method || "gps", lastMeasure.acc);
+      chainFrom = lastMeasure.endFix || null;
+      state.ui.shotNo = Math.min(6, (state.ui.shotNo || 1) + 1);
       lastMeasure = null;
+      patchMeasure();
       return;
+    }
+    if(act === "m-shotno"){ state.ui.shotNo = Number(b.dataset.v); patchMeasure(); return; }
+    if(act === "m-continue"){
+      if(!chainFrom){ toast("開始地点が残っていません。①からお試しください"); return; }
+      live.from = chainFrom; live.cur = chainFrom; live.dist = 0;
+      try{
+        live.watchId = navigator.geolocation.watchPosition(function(pp){
+          live.cur = {lat:pp.coords.latitude, lon:pp.coords.longitude, acc:pp.coords.accuracy, ts:pp.timestamp};
+          live.dist = haversine(live.from, live.cur);
+          paintLive();
+        }, function(){}, {enableHighAccuracy:true, maximumAge:1000, timeout:30000});
+      }catch(e){ toast("位置情報を利用できません"); return; }
+      patchMeasure(); return;
     }
     if(act === "m-manual"){
       var my = prompt(state.ui.gpsClub + " の飛距離（ヤード）を入力してください");
