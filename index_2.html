@@ -687,8 +687,8 @@ function viewRound(){
     + '<div class="rbar-tot" id="r-tot">'+totalsHtml(r)+'</div>'
     + '<div class="holetabs" id="hole-tabs">'+tabsHtml(r, idx)+'</div>'
     + '</div>';
-  out += '<div class="card" id="hole-card">'+holeCardHtml(r, idx)+'</div>';
-  out += '<div class="card blk" id="m-panel">'+measureHtml()+'</div>';
+  out += '<div class="card" id="m-panel">'+measureHtml()+'</div>';
+  out += '<div class="card blk" id="hole-card">'+holeCardHtml(r, idx)+'</div>';
   return out;
 }
 
@@ -727,29 +727,29 @@ function holeCardHtml(r, idx){
     + '<span class="parbox">PAR '+h.par+'</span>'
     + (h.yard?'<span class="hint">'+h.yard+'y</span>':'')
     + '<span class="scorelabel" id="h-label">'+scoreLabel(h)+'</span></div>';
-  out += '<div class="cells">' + cellHtml('score','スコア',h.score) + cellHtml('putts','PUTT',h.putts) + '</div>';
-  out += '<div class="keypad">'+keypadHtml()+'</div>';
-  out += '<div class="blk"><label class="f">ティーショット</label><div class="teerow">'
+
+  /* ② ティーショット */
+  out += '<label class="f">ティーショットの結果</label><div class="teerow">'
     + tees.map(function(o){
         return '<button data-act="tee-res" data-v="'+o.k+'" aria-pressed="'+(h.tee===o.k)+'">'+esc(o.sn||o.n)+'</button>';
-      }).join('') + '</div></div>';
+      }).join('') + '</div>';
   out += '<div class="blk"><label class="f">ティーショットのクラブ</label><div class="chips">'
     + state.clubs.filter(function(c){ return c!=='PT'; }).map(function(c){
         return '<button data-act="tee-club" data-v="'+esc(c)+'" aria-pressed="'+(h.teeClub===c)+'">'+esc(c)+'</button>';
       }).join('') + '</div></div>';
+
+  /* ③ スコア入力 */
+  out += '<div class="blk"><label class="f">スコア入力</label>'
+    + '<div class="cells">' + cellHtml('score','スコア',h.score) + cellHtml('putts','PUTT',h.putts) + '</div>'
+    + '<div class="keypad">'+keypadHtml()+'</div></div>';
+
   out += '<div class="blk"><div class="counters">'
     + [['ob','OB'],['bunker','バンカー'],['pen','ペナルティ']].map(function(f){
         return '<div class="counter"><small>'+f[1]+'</small><div class="cc">'
           + '<button data-act="cnt" data-f="'+f[0]+'" data-d="-1">−</button><b>'+(h[f[0]]||0)+'</b>'
           + '<button data-act="cnt" data-f="'+f[0]+'" data-d="1">＋</button></div></div>';
       }).join('') + '</div></div>';
-  out += '<div class="blk"><label class="f">使用クラブ（打った順）</label><div class="chips" style="margin-bottom:8px">'
-    + state.clubs.map(function(c){ return '<button data-act="add-club" data-v="'+esc(c)+'">'+esc(c)+'</button>'; }).join('')
-    + '</div><div class="shotlist">'
-    + (h.clubs.length ? h.clubs.map(function(c,i){
-        return '<span><b>'+(i+1)+'</b>'+esc(c)+'<button data-act="rm-club" data-i="'+i+'" aria-label="削除">×</button></span>';
-      }).join('') : '<span class="hint" style="border:0;background:none;padding-left:6px">未入力</span>')
-    + '</div></div>';
+
   out += '<div class="blk"><div class="row" id="judge">'
     + '<span class="pill '+(parOn(h)?'on':'')+'">パーオン '+(h.score?(parOn(h)?'○':'×'):'–')+'</span>'
     + '<span class="pill '+(bogeyOn(h)?'on':'')+'">ボギーオン '+(h.score?(bogeyOn(h)?'○':'×'):'–')+'</span>'
@@ -757,6 +757,7 @@ function holeCardHtml(r, idx){
         ? '<span class="pill '+(oneOn(h)?'on':'')+'">ワンオン '+(oneOn(h)?'○':'×')+'</span>'
         : '<span class="pill '+(fwHit(h)?'on':'')+'">FWキープ '+(fwHit(h)?'○':'×')+'</span>')
     + '</div></div>';
+
   out += '<div class="navrow">'
     + '<button data-act="prev-hole"'+(idx===0?' disabled':'')+'>← '+(idx===0?'前':idx+'H')+'</button>'
     + '<button class="primary" data-act="next-hole"'+(idx===r.holes.length-1?' disabled':'')+'>'+(idx===r.holes.length-1?'最終ホール':(idx+2)+'H')+' →</button>'
@@ -1452,6 +1453,15 @@ function viewData(){
 }
 
 /* ============================ CSV ============================ */
+function clubsOfHole(r, i){
+  var list = state.shots.filter(function(x){ return x.roundId === r.id && x.hole === i+1; })
+                        .sort(function(a,b){ return (a.shotNo||0)-(b.shotNo||0) || a.ts-b.ts; })
+                        .map(function(x){ return x.club; });
+  if(list.length) return list.join("-");
+  var h = r.holes[i];
+  if(h.clubs && h.clubs.length) return h.clubs.join("-");
+  return h.teeClub || "";
+}
 function csvScores(){
   var head = ["Round","Date","Course","Hole","Par","Score","Putts","FW_Attempt","FW_Hit","ParOn","BogeyOn","OB","Bunker","Penalty","OneOn","TeeClub","TeeResult","Clubs","Note"];
   var rows = [head];
@@ -1463,7 +1473,7 @@ function csvScores(){
       rows.push([rid, r.date, r.courseName, i+1, h.par, h.score, h.putts||0, fwAttempt(h), fwHit(h),
                  parOn(h), bogeyOn(h), h.ob||0, h.bunker||0, h.pen||0,
                  h.par===3 ? oneOn(h) : "", h.teeClub||"", h.tee||"",
-                 (h.clubs||[]).join("-"), h.note||""]);
+                 clubsOfHole(r, i), h.note||""]);
     });
   });
   return rows.map(function(r){
@@ -1635,10 +1645,7 @@ document.getElementById("view").addEventListener("click", async function(e){
     }
     if(act === "tee-club"){
       h.teeClub = (h.teeClub === b.dataset.v) ? "" : b.dataset.v;
-      if(h.teeClub){
-        if(!h.clubs.length) h.clubs = [h.teeClub];
-        if((state.ui.shotNo || 1) === 1) state.ui.gpsClub = h.teeClub;
-      }
+      if(h.teeClub && (state.ui.shotNo || 1) === 1) state.ui.gpsClub = h.teeClub;
       r.updatedAt = Date.now(); markDirty(); patchHole(); patchMeasure(); return;
     }
     if(act === "tee-res"){
@@ -1648,8 +1655,6 @@ document.getElementById("view").addEventListener("click", async function(e){
       if(h.tee === "B" && !h.bunker) h.bunker = 1;
       r.updatedAt = Date.now(); markDirty(); patchHole(); return;
     }
-    if(act === "add-club"){ h.clubs.push(b.dataset.v); r.updatedAt = Date.now(); markDirty(); patchHole(); return; }
-    if(act === "rm-club"){ h.clubs.splice(Number(b.dataset.i), 1); r.updatedAt = Date.now(); markDirty(); patchHole(); return; }
 
     /* --- 同一画面の計測 --- */
     if(act === "m-club"){ state.ui.gpsClub = b.dataset.v; patchMeasure(); return; }
