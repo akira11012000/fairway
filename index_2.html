@@ -163,6 +163,58 @@ svg.chart .pt{fill:var(--accent);stroke:var(--surface);stroke-width:2}
 .note b{color:var(--accent)}
 ul.coach{margin:0;padding-left:20px}
 ul.coach li{margin-bottom:6px}
+
+/* ---- ラウンド画面（スコア＋計測 一体型） ---- */
+.rbar{background:var(--paper);padding-top:6px}
+.rbar-top{display:flex;align-items:center;gap:10px}
+.rbar-top .hint{margin-left:auto}
+.rbar-tot{display:flex;gap:14px;align-items:baseline;font-variant-numeric:tabular-nums;padding:2px 0 2px}
+.rbar-tot span{font-size:12px;color:var(--muted);font-weight:700}
+.rbar-tot b{font-family:var(--serif);font-size:26px;color:var(--ink);margin-left:3px}
+.holetabs{display:flex;gap:6px;overflow-x:auto;padding:6px 0 8px;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+.holetabs::-webkit-scrollbar{display:none}
+.holetabs button{flex:0 0 auto;min-width:60px;padding:5px 8px;border-radius:10px;border:1px solid var(--line);background:var(--surface);text-align:center;line-height:1.2;cursor:pointer}
+.holetabs button b{display:block;font-size:15px;font-family:var(--serif)}
+.holetabs button small{display:block;font-size:10px;color:var(--muted)}
+.holetabs button.done{border-color:var(--accent);background:var(--accent-soft)}
+.holetabs button[aria-current="true"]{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
+.holetabs button[aria-current="true"] small{color:var(--on-accent);opacity:.8}
+.holebar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+.holebar .hno{font-family:var(--serif);font-size:30px;line-height:1}
+.holebar .parbox{border:2px solid var(--crit);color:var(--crit);border-radius:8px;padding:0 9px;font-weight:700;font-size:14px}
+.scorelabel{margin-left:auto;font-weight:700;font-size:15px}
+.cells{display:grid;grid-template-columns:1.35fr 1fr;gap:10px}
+.cell{border:2px solid var(--line);border-radius:14px;background:var(--surface-2);padding:6px 4px;text-align:center;cursor:pointer;min-height:88px;display:flex;flex-direction:column;justify-content:center;gap:2px}
+.cell small{font-size:11px;letter-spacing:.1em;color:var(--muted);font-weight:700}
+.cell b{font-family:var(--serif);font-size:42px;line-height:1;font-variant-numeric:tabular-nums}
+.cell[aria-selected="true"]{border-color:var(--s2);background:var(--accent-soft)}
+.keypad{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-top:12px}
+.keypad button{min-height:54px;border-radius:12px;border:1px solid var(--line);background:var(--surface-2);font-size:21px;font-weight:700;cursor:pointer;font-variant-numeric:tabular-nums}
+.keypad button.clear{font-size:14px;color:var(--muted);font-weight:500}
+.teerow{display:grid;grid-template-columns:repeat(auto-fit,minmax(86px,1fr));gap:8px;margin-top:6px}
+.teerow button{min-height:50px;border-radius:12px;border:1px solid var(--line);background:var(--surface);font-size:15px;cursor:pointer}
+.teerow button[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--on-accent);font-weight:700}
+.counters{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:6px}
+.counter{border:1px solid var(--line);border-radius:12px;padding:6px 4px;text-align:center}
+.counter small{display:block;font-size:11px;color:var(--muted);font-weight:700}
+.counter .cc{display:flex;align-items:center;justify-content:center;gap:8px;margin-top:2px}
+.counter button{width:38px;height:38px;border-radius:10px;border:1px solid var(--line);background:var(--surface-2);font-size:19px;font-weight:700;cursor:pointer}
+.counter b{font-family:var(--serif);font-size:23px;min-width:22px;font-variant-numeric:tabular-nums}
+.blk{margin-top:16px}
+.blk>label.f{margin-bottom:6px}
+.mbtn{width:100%;min-height:70px;border-radius:14px;font-family:var(--serif);font-size:20px;font-weight:700;border:1px solid var(--accent);background:var(--accent);color:var(--on-accent);cursor:pointer}
+.mbtn.stop{background:var(--s2);border-color:var(--s2);color:#fff}
+.mbtn:disabled{opacity:.6}
+.mdist{font-family:var(--serif);font-size:46px;line-height:1.05;font-variant-numeric:tabular-nums;text-align:center}
+.mdist span{font-family:var(--sans);font-size:15px;color:var(--muted);margin-left:5px}
+.shotrow{display:flex;justify-content:space-between;align-items:center;gap:8px;border-bottom:1px solid var(--grid);padding:6px 0;font-size:14px}
+.navrow{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:16px}
+.navrow button{min-height:54px;border-radius:12px;border:1px solid var(--line);background:var(--surface-2);font-weight:700;cursor:pointer}
+.navrow button.primary{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
+.navrow button:disabled{opacity:.4}
+@media (max-width:640px){
+  .rbar{position:sticky;top:0;z-index:25;box-shadow:0 6px 14px rgba(0,0,0,.06)}
+}
 @media (max-width:640px){
   .app{padding:0 12px 130px}
   .two{grid-template-columns:1fr}
@@ -207,13 +259,13 @@ var YD = 0.9144; // 1yd = 0.9144m
 var DEFAULT_CLUBS = ["1W","3W","5W","7W","9W","6U","7U","8U","PU","PW","GW","SW"];
 var OLD_DEFAULT_CLUBS = ["1W","3W","5W","7W","U4","U5","6I","7I","8I","9I","PW","AW","SW","PT"];
 var TEE_RESULTS = [
-  {k:"FW", n:"フェアウェイ"},{k:"L", n:"左ラフ"},{k:"R", n:"右ラフ"},
-  {k:"B", n:"バンカー"},{k:"OB", n:"OB"},{k:"P", n:"池・ペナ"},{k:"-", n:"未記録"}
+  {k:"FW", n:"フェアウェイ", sn:"キープ"},{k:"L", n:"左ラフ", sn:"左"},{k:"R", n:"右ラフ", sn:"右"},
+  {k:"B", n:"バンカー", sn:"バンカー"},{k:"OB", n:"OB", sn:"OB"},{k:"P", n:"池・ペナ", sn:"池"},{k:"-", n:"未記録", sn:"–"}
 ];
 var TEE_RESULTS_P3 = [
-  {k:"ON", n:"ワンオン"},{k:"S", n:"グリーン手前"},{k:"O", n:"グリーン奥"},
-  {k:"L", n:"左に外す"},{k:"R", n:"右に外す"},
-  {k:"B", n:"バンカー"},{k:"OB", n:"OB"},{k:"P", n:"池・ペナ"},{k:"-", n:"未記録"}
+  {k:"ON", n:"ワンオン", sn:"ワンオン"},{k:"S", n:"グリーン手前", sn:"手前"},{k:"O", n:"グリーン奥", sn:"奥"},
+  {k:"L", n:"左に外す", sn:"左"},{k:"R", n:"右に外す", sn:"右"},
+  {k:"B", n:"バンカー", sn:"バンカー"},{k:"OB", n:"OB", sn:"OB"},{k:"P", n:"池・ペナ", sn:"池"},{k:"-", n:"未記録", sn:"–"}
 ];
 var STORE_KEY = "fairway-notebook-v1";
 
@@ -231,7 +283,7 @@ var state = {
   courses: SEED_COURSES.map(function(c){return JSON.parse(JSON.stringify(c));}),
   rounds: [],
   shots: [],
-  ui: {tab:"home", roundId:null, hole:0, gpsClub:"1W", analysisCourse:null}
+  ui: {tab:"home", roundId:null, hole:0, field:"score", gpsClub:"1W", analysisCourse:null}
 };
 var artifactApi = null, downloadsApi = null, dirty = false;
 
@@ -613,85 +665,161 @@ function viewRound(){
     }
     return h + '</div>';
   }
+
   var idx = Math.max(0, Math.min(state.ui.hole, r.holes.length-1));
-  var h0 = r.holes[idx], t = roundTotals(r);
-  var out = "";
-  out += '<div class="sec"><div class="card grid" style="gap:10px">'
-    + '<div class="row" style="justify-content:space-between">'
-    + '<div><b>'+esc(r.courseName)+'</b></div>'
-    + '<div class="row"><span class="pill">合計 '+t.score+'</span><span class="pill">'+(t.vsPar>=0?"+":"")+t.vsPar+'</span>'
-    + '<span class="pill">パット '+t.putts+'</span></div></div>'
-    + '<div class="row"><label class="f" for="round-date" style="margin:0">プレー日</label>'
-    + '<input type="date" id="round-date" data-act="round-date" value="'+esc(r.date)+'" style="width:auto;min-height:42px">'
-    + '<span class="hint">'+weekdayJa(r.date)+'</span></div>'
-    + '<div class="dots">' + r.holes.map(function(x, i){
-        return '<i class="'+(i===idx?"cur":(x.score?"on":""))+'"></i>';
-      }).join("") + '</div></div></div>';
-
-  out += '<div class="sec"><div class="card grid" style="gap:18px">'
-    + '<div class="holehead"><button class="btn" data-act="prev-hole" '+(idx===0?"disabled":"")+'>← 前</button>'
-    + '<div style="text-align:center"><div class="holeno">'+(idx+1)+'<small>Par '+h0.par+'</small></div></div>'
-    + '<button class="btn" data-act="next-hole" '+(idx===r.holes.length-1?"disabled":"")+'>次 →</button></div>';
-
-  out += '<div class="two">'
-    + '<div><label class="f">スコア（打数）</label><div class="stepper">'
-    + '<button data-act="dec" data-f="score">−</button><div class="val">'+(h0.score||"–")+'</div><button data-act="inc" data-f="score">＋</button></div>'
-    + '<div class="chips" style="margin-top:10px">'
-    + [[-1,"バーディ"],[0,"パー"],[1,"ボギー"],[2,"ダボ"],[3,"+3"]].map(function(q){
-        return '<button data-act="quick-score" data-v="'+(h0.par+q[0])+'" aria-pressed="'+(h0.score===h0.par+q[0])+'">'+q[1]+' '+(h0.par+q[0])+'</button>';
-      }).join("") + '</div></div>'
-    + '<div><label class="f">パット数</label><div class="stepper">'
-    + '<button data-act="dec" data-f="putts">−</button><div class="val">'+(h0.score?h0.putts:"–")+'</div><button data-act="inc" data-f="putts">＋</button></div>'
-    + '<p class="hint" style="margin-top:10px">グリーン上のパットのみ。エッジからのパターは含めない場合は「使用クラブ」にPTを追加してください。</p></div>'
+  state.ui.hole = idx;
+  var out = '';
+  out += '<div class="rbar">'
+    + '<div class="rbar-top"><b>'+esc(r.courseName)+'</b>'
+    + '<span class="hint">'+esc(r.date)+' '+weekdayJa(r.date)+'</span>'
+    + '<button class="btn sm ghost" data-act="close-round">一覧</button></div>'
+    + '<div class="rbar-tot" id="r-tot">'+totalsHtml(r)+'</div>'
+    + '<div class="holetabs" id="hole-tabs">'+tabsHtml(r, idx)+'</div>'
     + '</div>';
+  out += '<div class="card" id="hole-card">'+holeCardHtml(r, idx)+'</div>';
+  out += '<div class="card blk" id="m-panel">'+measureHtml()+'</div>';
+  return out;
+}
 
-  out += '<div><label class="f">ティーショットのクラブ</label><div class="chips">'
-    + state.clubs.filter(function(c){ return c!=="PT"; }).map(function(c){
-        return '<button data-act="tee-club" data-v="'+esc(c)+'" aria-pressed="'+(h0.teeClub===c)+'">'+esc(c)+'</button>';
-      }).join("") + '</div></div>';
-  out += '<div><label class="f">ティーショットの結果</label><div class="chips">'
-    + (h0.par===3?TEE_RESULTS_P3:TEE_RESULTS).map(function(o){
-        return '<button data-act="tee-res" data-v="'+o.k+'" aria-pressed="'+(h0.tee===o.k)+'">'+esc(o.n)+'</button>';
-      }).join("") + '</div>'
-    + (h0.par===3?'<p class="hint" style="margin-top:6px">Par3はFWキープの対象外です。かわりに<b>ワンオン</b>を記録し、ティーショットでグリーンを捉えた率を集計します。</p>':'') + '</div>';
-
-  out += '<div><label class="f">使用クラブ（打った順に押す）</label><div class="chips" style="margin-bottom:8px">'
-    + state.clubs.map(function(c){ return '<button data-act="add-club" data-v="'+esc(c)+'">'+esc(c)+'</button>'; }).join("")
+/* ---- ラウンド画面のパーツ ---- */
+function totalsHtml(r){
+  var t = roundTotals(r);
+  return '<span>合計<b>'+(t.holes?t.score:'–')+'</b></span>'
+    + '<span>vs Par<b>'+(t.holes?((t.vsPar>=0?'+':'')+t.vsPar):'–')+'</b></span>'
+    + '<span>パット<b>'+(t.holes?t.putts:'–')+'</b></span>'
+    + '<span>入力<b>'+t.holes+'</b>/'+r.holes.length+'</span>';
+}
+function tabsHtml(r, idx){
+  return r.holes.map(function(h, i){
+    return '<button data-act="hole-tab" data-i="'+i+'" aria-current="'+(i===idx)+'" class="'+(h.score?'done':'')+'">'
+      + '<b>'+(h.score||(i+1)+'H')+'</b><small>'+(h.score?(i+1)+'H':'PAR'+h.par)+'</small></button>';
+  }).join('');
+}
+function scoreLabel(h){
+  if(!h.score) return '';
+  var d = h.score - h.par;
+  return d<=-2?'イーグル':d===-1?'バーディ':d===0?'パー':d===1?'ボギー':d===2?'ダブルボギー':d===3?'トリプル':'+'+d;
+}
+function cellHtml(field, label, val){
+  return '<button class="cell" data-act="sel-field" data-f="'+field+'" aria-selected="'+(state.ui.field===field)+'">'
+    + '<small>'+label+'</small><b>'+(val||val===0?val:'–')+'</b></button>';
+}
+function keypadHtml(){
+  var keys = [1,2,3,4,5,6,7,8,9,10,11,12,0];
+  return keys.map(function(k){ return '<button data-act="key" data-v="'+k+'">'+k+'</button>'; }).join('')
+    + '<button class="clear" data-act="key" data-v="-1">消す</button>';
+}
+function holeCardHtml(r, idx){
+  var h = r.holes[idx];
+  var tees = (h.par===3?TEE_RESULTS_P3:TEE_RESULTS).filter(function(o){ return o.k!=='-'; });
+  var out = '<div class="holebar"><span class="hno">'+(idx+1)+'H</span>'
+    + '<span class="parbox">PAR '+h.par+'</span>'
+    + (h.yard?'<span class="hint">'+h.yard+'y</span>':'')
+    + '<span class="scorelabel" id="h-label">'+scoreLabel(h)+'</span></div>';
+  out += '<div class="cells">' + cellHtml('score','スコア',h.score) + cellHtml('putts','PUTT',h.putts) + '</div>';
+  out += '<div class="keypad">'+keypadHtml()+'</div>';
+  out += '<div class="blk"><label class="f">ティーショット</label><div class="teerow">'
+    + tees.map(function(o){
+        return '<button data-act="tee-res" data-v="'+o.k+'" aria-pressed="'+(h.tee===o.k)+'">'+esc(o.sn||o.n)+'</button>';
+      }).join('') + '</div></div>';
+  out += '<div class="blk"><label class="f">ティーショットのクラブ</label><div class="chips">'
+    + state.clubs.filter(function(c){ return c!=='PT'; }).map(function(c){
+        return '<button data-act="tee-club" data-v="'+esc(c)+'" aria-pressed="'+(h.teeClub===c)+'">'+esc(c)+'</button>';
+      }).join('') + '</div></div>';
+  out += '<div class="blk"><div class="counters">'
+    + [['ob','OB'],['bunker','バンカー'],['pen','ペナルティ']].map(function(f){
+        return '<div class="counter"><small>'+f[1]+'</small><div class="cc">'
+          + '<button data-act="cnt" data-f="'+f[0]+'" data-d="-1">−</button><b>'+(h[f[0]]||0)+'</b>'
+          + '<button data-act="cnt" data-f="'+f[0]+'" data-d="1">＋</button></div></div>';
+      }).join('') + '</div></div>';
+  out += '<div class="blk"><label class="f">使用クラブ（打った順）</label><div class="chips" style="margin-bottom:8px">'
+    + state.clubs.map(function(c){ return '<button data-act="add-club" data-v="'+esc(c)+'">'+esc(c)+'</button>'; }).join('')
     + '</div><div class="shotlist">'
-    + (h0.clubs.length ? h0.clubs.map(function(c, i){
+    + (h.clubs.length ? h.clubs.map(function(c,i){
         return '<span><b>'+(i+1)+'</b>'+esc(c)+'<button data-act="rm-club" data-i="'+i+'" aria-label="削除">×</button></span>';
-      }).join("") : '<span class="hint" style="border:0;background:none;padding-left:6px">未入力</span>')
-    + '</div>'
-    + '<div class="row" style="margin-top:10px"><button class="btn sm" data-act="measure-here">このホールで飛距離を計測</button></div></div>';
-
-  out += '<div class="two">'
-    + ["ob","bunker","pen"].map(function(f, i){
-        var nm = ["OB","バンカー","ペナルティ"][i];
-        return '<div><label class="f">'+nm+'（回）</label><div class="stepper">'
-          + '<button data-act="dec" data-f="'+f+'">−</button><div class="val">'+(h0[f]||0)+'</div>'
-          + '<button data-act="inc" data-f="'+f+'">＋</button></div></div>';
-      }).join("")
-    + '<div><label class="f">自動判定</label><div class="row" style="min-height:54px">'
-    + '<span class="pill '+(parOn(h0)?"on":"")+'">パーオン '+(h0.score?(parOn(h0)?"○":"×"):"–")+'</span>'
-    + '<span class="pill '+(bogeyOn(h0)?"on":"")+'">ボギーオン '+(h0.score?(bogeyOn(h0)?"○":"×"):"–")+'</span>'
-    + (h0.par===3
-        ? '<span class="pill '+(oneOn(h0)?"on":"")+'">ワンオン '+(oneOn(h0)?"○":"×")+'</span>'
-        : '<span class="pill '+(fwHit(h0)?"on":"")+'">FWキープ '+(fwHit(h0)?"○":"×")+'</span>') + '</div>'
-    + '<p class="hint">打数−パット数から自動計算します。</p></div>'
+      }).join('') : '<span class="hint" style="border:0;background:none;padding-left:6px">未入力</span>')
+    + '</div></div>';
+  out += '<div class="blk"><div class="row" id="judge">'
+    + '<span class="pill '+(parOn(h)?'on':'')+'">パーオン '+(h.score?(parOn(h)?'○':'×'):'–')+'</span>'
+    + '<span class="pill '+(bogeyOn(h)?'on':'')+'">ボギーオン '+(h.score?(bogeyOn(h)?'○':'×'):'–')+'</span>'
+    + (h.par===3
+        ? '<span class="pill '+(oneOn(h)?'on':'')+'">ワンオン '+(oneOn(h)?'○':'×')+'</span>'
+        : '<span class="pill '+(fwHit(h)?'on':'')+'">FWキープ '+(fwHit(h)?'○':'×')+'</span>')
+    + '</div></div>';
+  out += '<div class="navrow">'
+    + '<button data-act="prev-hole"'+(idx===0?' disabled':'')+'>← '+(idx===0?'前':idx+'H')+'</button>'
+    + '<button class="primary" data-act="next-hole"'+(idx===r.holes.length-1?' disabled':'')+'>'+(idx===r.holes.length-1?'最終ホール':(idx+2)+'H')+' →</button>'
     + '</div>';
+  return out;
+}
 
-  out += '<div><label class="f">メモ</label><input type="text" data-act="note" value="'+esc(h0.note||"")+'" placeholder="例：2打目トップ／風は左からのアゲンスト"></div>';
-  out += '<div class="row" style="justify-content:space-between">'
-    + '<button class="btn ghost" data-act="close-round">一覧に戻る</button>'
-    + '<button class="btn primary" data-act="next-hole" '+(idx===r.holes.length-1?"disabled":"")+'>次のホールへ →</button></div>';
-  out += '</div></div>';
-
-  if(t.complete){
-    out += '<div class="sec"><div class="note"><b>18ホール入力完了！</b>　合計 '+t.score+'（'+(t.vsPar>=0?"+":"")+t.vsPar+'）／パット '+t.putts
-      + '　<div style="margin-top:10px"><button class="btn primary sm" data-act="go-analysis">分析を見る</button>'
-      + ' <button class="btn sm" data-act="cloud-save">クラウドに保存</button></div></div></div>';
+/* ---- 同一画面の飛距離計測 ---- */
+function measureHtml(){
+  var r = currentRound();
+  var idx = state.ui.hole;
+  var tracking = live.watchId != null;
+  var env = gpsEnv();
+  var blocked = env.framed && (env.policy === false || state.settings.gpsBlocked);
+  var out = '<div class="row" style="justify-content:space-between"><label class="f" style="margin:0">飛距離計測</label>'
+    + '<span class="hint">'+(r?(idx+1)+'番ホールに記録':'ラウンド未選択')+'</span></div>';
+  if(blocked){
+    out += '<div class="note" style="border-color:var(--crit);margin-top:8px"><b>この画面ではGPSが使えません</b>'
+      + '<div class="hint" style="margin-top:4px">埋め込み表示のため位置情報がブロックされています。単独URLで開くか、下の手入力をお使いください。</div></div>';
+  }
+  out += '<div class="chips" style="margin:10px 0">'
+    + state.clubs.filter(function(c){ return c!=='PT'; }).map(function(c){
+        return '<button data-act="m-club" data-v="'+esc(c)+'" aria-pressed="'+(state.ui.gpsClub===c)+'">'+esc(c)+'</button>';
+      }).join('') + '</div>';
+  if(lastMeasure){
+    out += '<div class="mdist">'+Math.round(lastMeasure.yards)+'<span>yd</span></div>'
+      + '<p class="hint" style="text-align:center">'+esc(lastMeasure.club)+' ／ '+Math.round(lastMeasure.meters)+'m'
+      + (lastMeasure.acc?' ／ 誤差 ±'+Math.round(lastMeasure.acc)+'m':'')+'</p>'
+      + '<div class="navrow"><button data-act="m-drop">破棄する</button>'
+      + '<button class="primary" data-act="m-save">このホールに保存</button></div>';
+  } else if(tracking){
+    out += '<div class="mdist"><b id="m-yd">'+Math.round(live.dist/YD)+'</b><span>yd</span></div>'
+      + '<p class="hint" style="text-align:center" id="m-meta">'+Math.round(live.dist)+'m ／ 誤差 ±'+Math.round(live.cur?live.cur.acc:0)+'m</p>'
+      + '<button class="mbtn stop" data-act="m-stop">② ボール地点で計測終了</button>'
+      + '<div class="row" style="margin-top:8px"><button class="btn sm ghost" data-act="m-cancel">中止</button></div>';
+  } else {
+    out += '<button class="mbtn" id="m-start" data-act="m-start">① この位置から計測開始</button>'
+      + '<div class="row" style="margin-top:8px"><button class="btn sm ghost" data-act="m-manual">手入力</button>'
+      + '<button class="btn sm ghost" data-act="go-gps">計測タブを開く</button></div>'
+      + '<div id="m-err"></div>';
+  }
+  var mine = r ? state.shots.filter(function(x){ return x.roundId === r.id && x.hole === idx+1; }) : [];
+  if(mine.length){
+    out += '<div class="blk"><label class="f">このホールの計測</label>'
+      + mine.map(function(x){
+          return '<div class="shotrow"><span><b>'+esc(x.club)+'</b>　'+Math.round(x.yards)+' yd'
+            + '<span class="hint">　'+esc(methodLabel(x))+'</span></span>'
+            + '<button class="btn sm danger" data-act="del-shot" data-id="'+x.id+'">削除</button></div>';
+        }).join('') + '</div>';
   }
   return out;
+}
+
+/* ---- 部分更新（画面全体を作り直さない） ---- */
+function patchHole(){
+  var r = currentRound(); if(!r) return;
+  var card = document.getElementById('hole-card');
+  if(card) card.innerHTML = holeCardHtml(r, state.ui.hole);
+  var tot = document.getElementById('r-tot');
+  if(tot) tot.innerHTML = totalsHtml(r);
+  var tabs = document.getElementById('hole-tabs');
+  if(tabs) tabs.innerHTML = tabsHtml(r, state.ui.hole);
+}
+function patchMeasure(){
+  var m = document.getElementById('m-panel');
+  if(m) m.innerHTML = measureHtml();
+}
+function scrollTabIntoView(){
+  var el = document.querySelector('#hole-tabs button[aria-current="true"]');
+  if(el && el.parentNode) el.parentNode.scrollTo({left: Math.max(0, el.offsetLeft - 110), behavior:'smooth'});
+}
+function refreshGps(){
+  if(state.ui.tab === 'round') patchMeasure();
+  else { lockScroll = true; render(); }
 }
 
 /* ============================ 画面：GPS飛距離計測 ============================ */
@@ -843,11 +971,15 @@ function stopLive(){
   live.watchId = null;
 }
 function paintLive(){
+  var yds = Math.round(live.dist / YD);
   var yd = document.getElementById("liveyd");
-  if(!yd) return;
-  yd.textContent = Math.round(live.dist / YD);
+  if(yd) yd.textContent = yds;
   var m = document.getElementById("livemeta");
   if(m) m.textContent = Math.round(live.dist) + " m ／ 現在の測位誤差 ±" + Math.round(live.cur ? live.cur.acc : 0) + "m";
+  var yd2 = document.getElementById("m-yd");
+  if(yd2) yd2.textContent = yds;
+  var m2 = document.getElementById("m-meta");
+  if(m2) m2.textContent = Math.round(live.dist) + "m ／ 誤差 ±" + Math.round(live.cur ? live.cur.acc : 0) + "m";
 }
 async function startLive(){
   var btn = document.getElementById("gpsbtn");
@@ -860,7 +992,7 @@ async function startLive(){
       live.dist = haversine(live.from, live.cur);
       paintLive();
     }, function(){}, {enableHighAccuracy:true, maximumAge:1000, timeout:30000});
-    lockScroll = true; render();
+    refreshGps();
   }catch(err){
     if(btn){ btn.disabled = false; btn.textContent = "① ボールを打つ位置でタップ"; }
     gpsError(err);
@@ -907,7 +1039,9 @@ function recordShot(yards, method, acc){
     acc: acc || null, method: method, roundId: rr ? rr.id : null,
     courseName: rr ? rr.courseName : "", hole: rr ? state.ui.hole+1 : null, updatedAt: Date.now()
   });
-  markDirty(); lockScroll = true; render();
+  markDirty();
+  if(state.ui.tab === "round"){ patchMeasure(); }
+  else { lockScroll = true; render(); }
   toast(state.ui.gpsClub + " " + Math.round(yards) + "yd を記録しました");
 }
 function gpsUnlockPanel(){
@@ -1351,6 +1485,7 @@ function render(){
   });
   paintCloudStatus();
   if(t === "gps") paintDiag();
+  if(t === "round") setTimeout(scrollTabIntoView, 30);
   if(!lockScroll) window.scrollTo({top:0, behavior:"instant"});
   lockScroll = false;
 }
@@ -1389,7 +1524,8 @@ document.getElementById("view").addEventListener("click", async function(e){
   }
   if(act === "resume"){ state.ui.roundId = b.dataset.id;
     var rr = currentRound(); var next = rr.holes.findIndex(function(x){ return !x.score; });
-    state.ui.hole = next < 0 ? 0 : next; go("round"); return; }
+    state.ui.hole = next < 0 ? 0 : next; state.ui.field = "score"; go("round");
+    setTimeout(scrollTabIntoView, 60); return; }
   if(act === "close-round"){ state.ui.roundId = null; render(); return; }
   if(act === "del-round"){
     if(!confirm("このラウンドを削除します。よろしいですか？")) return;
@@ -1402,31 +1538,106 @@ document.getElementById("view").addEventListener("click", async function(e){
   if(act === "measure-here"){ go("gps"); return; }
 
   if(r && h){
-    if(act === "prev-hole"){ state.ui.hole = Math.max(0, state.ui.hole-1); render(); return; }
-    if(act === "next-hole"){ state.ui.hole = Math.min(r.holes.length-1, state.ui.hole+1); render(); return; }
-    if(act === "inc" || act === "dec"){
-      var f = b.dataset.f, d2 = act === "inc" ? 1 : -1;
-      if(f === "score" && !h.score && d2 > 0) h.score = h.par; else h[f] = Math.max(0, (h[f]||0) + d2);
-      if(f === "score" && h.score && !h.putts) h.putts = 2;
-      if(f === "score" && h.putts > h.score) h.putts = h.score;
-      if(f === "putts" && h.putts > h.score) h.putts = h.score;
-      r.updatedAt = Date.now(); markDirty(); render(); return;
+    if(act === "prev-hole" || act === "next-hole"){
+      state.ui.hole = act === "prev-hole" ? Math.max(0, state.ui.hole-1) : Math.min(r.holes.length-1, state.ui.hole+1);
+      state.ui.field = "score";
+      patchHole(); patchMeasure(); scrollTabIntoView();
+      window.scrollTo({top:0, behavior:"smooth"});
+      return;
     }
-    if(act === "quick-score"){
-      h.score = Number(b.dataset.v); if(!h.putts) h.putts = 2;
-      if(h.putts > h.score) h.putts = h.score;
-      r.updatedAt = Date.now(); markDirty(); render(); return;
+    if(act === "hole-tab"){
+      state.ui.hole = Number(b.dataset.i); state.ui.field = "score";
+      patchHole(); patchMeasure(); scrollTabIntoView();
+      return;
     }
-    if(act === "tee-club"){ h.teeClub = (h.teeClub === b.dataset.v) ? "" : b.dataset.v;
-      if(h.teeClub && !h.clubs.length) h.clubs = [h.teeClub];
-      r.updatedAt = Date.now(); markDirty(); render(); return; }
-    if(act === "tee-res"){ h.tee = b.dataset.v;
+    if(act === "sel-field"){ state.ui.field = b.dataset.f; patchHole(); return; }
+    if(act === "key"){
+      var v = Number(b.dataset.v);
+      var f = state.ui.field || "score";
+      if(v < 0){ h[f] = 0; }
+      else if(f === "score"){
+        h.score = v;
+        if(v > 0 && !h.putts) h.putts = 2;
+        if(h.putts > h.score) h.putts = h.score;
+        state.ui.field = "putts";
+      } else {
+        h.putts = Math.min(v, h.score || v);
+      }
+      r.updatedAt = Date.now(); markDirty(); patchHole(); return;
+    }
+    if(act === "cnt"){
+      var fc = b.dataset.f;
+      h[fc] = Math.max(0, (h[fc]||0) + Number(b.dataset.d));
+      r.updatedAt = Date.now(); markDirty(); patchHole(); return;
+    }
+    if(act === "tee-club"){
+      h.teeClub = (h.teeClub === b.dataset.v) ? "" : b.dataset.v;
+      if(h.teeClub){
+        if(!h.clubs.length) h.clubs = [h.teeClub];
+        state.ui.gpsClub = h.teeClub;
+      }
+      r.updatedAt = Date.now(); markDirty(); patchHole(); patchMeasure(); return;
+    }
+    if(act === "tee-res"){
+      h.tee = (h.tee === b.dataset.v) ? "-" : b.dataset.v;
       if(h.tee === "OB" && !h.ob) h.ob = 1;
       if(h.tee === "P" && !h.pen) h.pen = 1;
       if(h.tee === "B" && !h.bunker) h.bunker = 1;
-      r.updatedAt = Date.now(); markDirty(); render(); return; }
-    if(act === "add-club"){ h.clubs.push(b.dataset.v); r.updatedAt = Date.now(); markDirty(); render(); return; }
-    if(act === "rm-club"){ h.clubs.splice(Number(b.dataset.i), 1); r.updatedAt = Date.now(); markDirty(); render(); return; }
+      r.updatedAt = Date.now(); markDirty(); patchHole(); return;
+    }
+    if(act === "add-club"){ h.clubs.push(b.dataset.v); r.updatedAt = Date.now(); markDirty(); patchHole(); return; }
+    if(act === "rm-club"){ h.clubs.splice(Number(b.dataset.i), 1); r.updatedAt = Date.now(); markDirty(); patchHole(); return; }
+
+    /* --- 同一画面の計測 --- */
+    if(act === "m-club"){ state.ui.gpsClub = b.dataset.v; patchMeasure(); return; }
+    if(act === "m-start"){
+      if(gpsBusy) return;
+      gpsBusy = true;
+      var sb = document.getElementById("m-start");
+      if(sb){ sb.disabled = true; sb.textContent = "現在地を測っています…"; }
+      try{
+        var fix = await getFix(12000, 10);
+        live.from = fix; live.cur = fix; live.dist = 0;
+        live.watchId = navigator.geolocation.watchPosition(function(pp){
+          live.cur = {lat:pp.coords.latitude, lon:pp.coords.longitude, acc:pp.coords.accuracy, ts:pp.timestamp};
+          live.dist = haversine(live.from, live.cur);
+          paintLive();
+        }, function(){}, {enableHighAccuracy:true, maximumAge:1000, timeout:30000});
+        patchMeasure();
+      }catch(err){
+        patchMeasure();
+        var eo = document.getElementById("m-err");
+        if(eo) eo.innerHTML = '<div class="note" style="border-color:var(--crit);margin-top:10px">'
+          + esc((err && err.code === 1) ? "位置情報が許可されていません。手入力をお使いください。"
+              : (err && err.code === 2) ? "衛星を捕まえられませんでした。空の開けた場所でもう一度お試しください。"
+              : (err && err.code === 3) ? "時間内に測位できませんでした。もう一度お試しください。"
+              : ((err && err.message) || "位置情報を利用できません。")) + '</div>';
+      }finally{ gpsBusy = false; }
+      return;
+    }
+    if(act === "m-stop"){
+      if(live.watchId == null) return;
+      lastMeasure = {club: state.ui.gpsClub, meters: live.dist, yards: live.dist/YD,
+                     acc: Math.max(live.from?live.from.acc:0, live.cur?live.cur.acc:0), method:"gps"};
+      stopLive(); live.from = null; live.cur = null; live.dist = 0;
+      patchMeasure(); return;
+    }
+    if(act === "m-cancel"){ stopLive(); live.from=null; live.cur=null; live.dist=0; patchMeasure(); return; }
+    if(act === "m-drop"){ lastMeasure = null; patchMeasure(); return; }
+    if(act === "m-save"){
+      if(!lastMeasure) return;
+      recordShot(lastMeasure.yards, lastMeasure.method || "gps", lastMeasure.acc);
+      lastMeasure = null;
+      return;
+    }
+    if(act === "m-manual"){
+      var my = prompt(state.ui.gpsClub + " の飛距離（ヤード）を入力してください");
+      if(my && !isNaN(Number(my)) && Number(my) > 0){
+        lastMeasure = {club:state.ui.gpsClub, yards:Number(my), meters:Number(my)*YD, acc:0, method:"manual"};
+        patchMeasure();
+      }
+      return;
+    }
   }
 
   /* --- GPS --- */
@@ -1528,7 +1739,9 @@ document.getElementById("view").addEventListener("click", async function(e){
   if(act === "drop-shot"){ lastMeasure = null; lockScroll = true; render(); return; }
   if(act === "del-shot"){
     state.shots = state.shots.filter(function(s){ return s.id !== b.dataset.id; });
-    markDirty(); render(); return;
+    markDirty();
+    if(state.ui.tab === "round"){ patchMeasure(); } else { lockScroll = true; render(); }
+    return;
   }
 
   /* --- データ管理 --- */
