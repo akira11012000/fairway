@@ -335,6 +335,11 @@ function bootState(){
   var courses  = mergeById(base.courses, local && local.courses);
   var seedIds = {}; SEED_COURSES.forEach(function(c){seedIds[c.id]=1;});
   SEED_COURSES.forEach(function(c){ if(!courses.some(function(x){return x.id===c.id;})) courses.push(clone(c)); });
+  courses.sort(function(a, b){
+    if(a.id === "sobu-north") return -1;
+    if(b.id === "sobu-north") return 1;
+    return 0;
+  });
   state.courses = courses;
   var st = (local && local.settings) || base.settings || {};
   state.settings = {stride: st.stride || 75, gpsBlocked: !!st.gpsBlocked};
@@ -498,10 +503,19 @@ function viewHome(){
   var open = state.rounds.filter(function(r){ var t = roundTotals(r); return t.holes > 0 && !t.complete; });
   var h = "";
   if(!state.rounds.length){
-    h += '<div class="card sec" style="text-align:center">'
-      +  '<h2>ようこそ、大森さん</h2>'
-      +  '<p class="hint" style="margin:10px auto 18px;max-width:34em">ホールごとのスコア・パット・使用クラブを記録し、GPSでクラブの飛距離を貯めていきます。データが溜まるほど分析が正確になります。</p>'
-      +  '<button class="btn primary" data-act="new-round">最初のラウンドを入力する</button></div>';
+    h += '<div class="card sec">'
+      +  '<h2 style="text-align:center">フェアウェイ手帳へようこそ</h2>'
+      +  '<p class="hint" style="margin:10px auto 16px;max-width:34em;text-align:center">ホールごとのスコアとGPSで測ったクラブ別の飛距離を記録し、そのまま分析まで行えます。データはこの端末の中だけに保存され、外部には送信されません。</p>'
+      +  '<div class="note"><b>はじめに（2分で終わります）</b>'
+      +  '<ol style="margin:8px 0 0;padding-left:20px;line-height:1.9">'
+      +  '<li><b>クラブセットを自分のバッグに合わせる</b><br><span class="hint">「データ」タブ → クラブセット。ひな型から選ぶか、1本ずつ追加・削除・並べ替えできます。</span></li>'
+      +  '<li><b>コースを登録する</b><br><span class="hint">「データ」タブ → コース。Parを並べて入力します（9ホール×2周のコースは周回数に2）。</span></li>'
+      +  '<li><b>ラウンドを始める</b><br><span class="hint">「スコア入力」タブ → プレー日とコースを選んで開始。</span></li>'
+      +  '</ol></div>'
+      +  '<div class="row" style="margin-top:14px"><button class="btn primary" data-act="go-data">クラブとコースを設定する</button>'
+      +  '<button class="btn" data-act="new-round">ラウンドを始める</button></div>'
+      +  '<p class="hint" style="margin-top:12px">iPhoneの方は、Safariの共有ボタン →「ホーム画面に追加」をしておくと、次回から1タップで開けます（記録が消えにくくなります）。</p>'
+      +  '</div>';
   }
   if(open.length){
     var r = open[0], t = roundTotals(r);
@@ -660,7 +674,14 @@ function viewRound(){
       + '<div><label class="f">プレー日</label><input type="date" id="new-date" value="'+today()+'"></div>'
       + '<p class="hint" style="margin:-6px 0 0">日付を変えれば、過去にプレーしたラウンドも後からまとめて入力できます。</p>'
       + '<div><label class="f">コース</label><select id="new-course">'
-      + state.courses.map(function(c){ return '<option value="'+c.id+'">'+esc(c.name)+(c.loop>1?"（"+c.pars.length+"H×"+c.loop+"周）":"（"+c.pars.length+"H）")+'</option>'; }).join("")
+      + (function(){
+          var def = (state.rounds[0] && state.rounds[0].courseId) || "sobu-north";
+          if(!state.courses.some(function(c){ return c.id === def; })) def = state.courses[0] ? state.courses[0].id : "";
+          return state.courses.map(function(c){
+            return '<option value="'+c.id+'"'+(c.id===def?" selected":"")+'>'+esc(c.name)
+              +(c.loop>1?"（"+c.pars.length+"H×"+c.loop+"周）":"（"+c.pars.length+"H）")+'</option>';
+          }).join("");
+        })()
       + '</select></div>'
       + '<div class="row"><button class="btn primary" data-act="create-round">このコースで開始</button>'
       + '<button class="btn ghost" data-act="go-data">コースを追加・編集</button></div></div>';
@@ -1417,6 +1438,11 @@ function viewData(){
       }).join("")
     + '<div class="row" style="margin-top:6px"><input type="text" id="newclub" placeholder="例：4U" style="max-width:180px">'
     + '<button class="btn sm" data-act="add-club-name">クラブを追加</button></div>'
+    + '<div style="border-top:1px solid var(--grid);padding-top:10px;margin-top:4px">'
+    + '<label class="f">ひな型から入れ替える</label><div class="row">'
+    + '<button class="btn sm" data-act="preset-clubs" data-v="std">標準（アイアン中心）</button>'
+    + '<button class="btn sm" data-act="preset-clubs" data-v="wood">ウッド・UT中心</button>'
+    + '</div><p class="hint" style="margin-top:6px">現在のクラブ一覧を、選んだひな型で置き換えます（記録済みのデータは消えません）。</p></div>'
     + '<p class="hint">↑↓でバッグの並びに合わせられます。ここの並び順が、そのまま入力画面のボタンの並び順になります。</p></div></div>';
 
   out += '<div class="sec"><div class="sec-h"><span class="eyebrow">ROUNDS</span><h2>ラウンドの管理</h2>'
@@ -1436,7 +1462,7 @@ function viewData(){
   out += '<div class="sec"><div class="sec-h"><span class="eyebrow">COURSES</span><h2>コース</h2></div><div class="card grid">'
     + state.courses.map(function(c){
         return '<div style="border-bottom:1px solid var(--grid);padding-bottom:10px">'
-          + '<div class="row" style="justify-content:space-between"><b>'+esc(c.name)+'</b>'
+          + '<div class="row" style="justify-content:space-between"><b>'+esc(c.name)+(c.id==="sobu-north"?' <span class="pill on">既定</span>':'')+'</b>'
           + '<span class="hint">'+c.pars.length+'ホール'+(c.loop>1?" × "+c.loop+"周":"")+'／Par '+c.pars.reduce(function(a,b){return a+b;},0)*(c.loop||1)+'</span></div>'
           + '<div class="hint">Par: '+c.pars.join(" ・ ")+'</div></div>';
       }).join("")
@@ -1850,6 +1876,18 @@ document.getElementById("view").addEventListener("click", async function(e){
     var nc = document.getElementById("newclub").value.trim();
     if(nc && state.clubs.indexOf(nc) < 0){ state.clubs.push(nc); markDirty(); render(); }
     return;
+  }
+  if(act === "preset-clubs"){
+    var presets = {
+      std: ["1W","3W","5W","U4","U5","6I","7I","8I","9I","PW","AW","SW","PT"],
+      wood: ["1W","3W","5W","7W","9W","6U","7U","8U","PU","PW","GW","SW","CP"]
+    };
+    var pv = presets[b.dataset.v];
+    if(!pv) return;
+    if(!confirm("クラブ一覧を「"+(b.dataset.v==="std"?"標準（アイアン中心）":"ウッド・UT中心")+"」に置き換えます。よろしいですか？")) return;
+    state.clubs = pv.slice();
+    if(pv.indexOf(state.ui.gpsClub) < 0) state.ui.gpsClub = pv[0];
+    markDirty(); lockScroll = true; render(); toast("クラブセットを入れ替えました"); return;
   }
   if(act === "club-up" || act === "club-down"){
     var ci = Number(b.dataset.i);
