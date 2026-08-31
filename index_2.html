@@ -164,6 +164,15 @@ svg.chart .pt{fill:var(--accent);stroke:var(--surface);stroke-width:2}
 ul.coach{margin:0;padding-left:20px}
 ul.coach li{margin-bottom:6px}
 
+/* ---- 一覧行（クラブ並べ替え・ラウンド管理） ---- */
+.listrow{display:flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:10px;padding:6px 10px;background:var(--surface);flex-wrap:wrap}
+.listrow .nm{font-family:var(--serif);font-size:17px;min-width:46px}
+.listrow .meta{font-size:13px;color:var(--ink-2);line-height:1.4}
+.listrow .sp{margin-left:auto}
+.listrow button{min-width:40px;height:40px;border-radius:9px;border:1px solid var(--line);background:var(--surface-2);font-size:15px;cursor:pointer;padding:0 10px;white-space:nowrap;flex:none}
+.listrow button:disabled{opacity:.3}
+.listrow button.del{color:var(--crit)}
+
 /* ---- ラウンド画面（スコア＋計測 一体型） ---- */
 .rbar{background:var(--paper);padding-top:6px}
 .rbar-top{display:flex;align-items:center;gap:10px}
@@ -1397,13 +1406,31 @@ function viewData(){
     + 'GPSは機内モードでも使えます。ラウンド後に機内モードを解除して「クラウドに保存」を押せば、通信は前後の2回だけで済みます。</p>'
     + '</div></div>';
 
-  out += '<div class="sec"><div class="sec-h"><span class="eyebrow">CLUBS</span><h2>クラブセット</h2></div><div class="card grid">'
-    + '<div class="chips">' + state.clubs.map(function(c){
-        return '<button data-act="del-club-name" data-v="'+esc(c)+'">'+esc(c)+' ×</button>';
-      }).join("") + '</div>'
-    + '<div class="row"><input type="text" id="newclub" placeholder="例：U6" style="max-width:180px">'
+  out += '<div class="sec"><div class="sec-h"><span class="eyebrow">CLUBS</span><h2>クラブセット</h2></div><div class="card grid" style="gap:8px">'
+    + state.clubs.map(function(c, i){
+        return '<div class="listrow"><span class="nm">'+esc(c)+'</span>'
+          + '<span class="sp"></span>'
+          + '<button data-act="club-up" data-i="'+i+'"'+(i===0?' disabled':'')+' aria-label="上へ">↑</button>'
+          + '<button data-act="club-down" data-i="'+i+'"'+(i===state.clubs.length-1?' disabled':'')+' aria-label="下へ">↓</button>'
+          + '<button class="del" data-act="del-club-name" data-v="'+esc(c)+'" aria-label="削除">削除</button></div>';
+      }).join("")
+    + '<div class="row" style="margin-top:6px"><input type="text" id="newclub" placeholder="例：4U" style="max-width:180px">'
     + '<button class="btn sm" data-act="add-club-name">クラブを追加</button></div>'
-    + '<p class="hint">バッグの中身に合わせて並べ替え・削除ができます（並び順＝入力チップの順番）。</p></div></div>';
+    + '<p class="hint">↑↓でバッグの並びに合わせられます。ここの並び順が、そのまま入力画面のボタンの並び順になります。</p></div></div>';
+
+  out += '<div class="sec"><div class="sec-h"><span class="eyebrow">ROUNDS</span><h2>ラウンドの管理</h2>'
+    + '<span class="hint">'+state.rounds.length+'件</span></div><div class="card grid" style="gap:8px">'
+    + (state.rounds.length ? state.rounds.map(function(x){
+        var t = roundTotals(x);
+        var ns = state.shots.filter(function(y){ return y.roundId === x.id; }).length;
+        return '<div class="listrow"><span class="meta"><b>'+esc(x.date)+'</b> '+weekdayJa(x.date)+'<br>'
+          + esc(x.courseName)+'　'+(t.holes?t.score+'打':'未入力')+'（'+t.holes+'ホール'+(ns?'・計測'+ns+'球':'')+'）</span>'
+          + '<span class="sp"></span>'
+          + '<button data-act="resume" data-id="'+x.id+'">開く</button>'
+          + '<button class="del" data-act="del-round" data-id="'+x.id+'">削除</button></div>';
+      }).join("") : '<p class="hint">記録されたラウンドはまだありません。</p>')
+    + (state.rounds.length ? '<div class="row" style="margin-top:8px"><button class="btn sm danger" data-act="del-all-rounds">すべてのラウンドを削除</button></div>' : '')
+    + '<p class="hint">削除するとそのラウンドのスコアと、そのラウンドで計測した飛距離データも一緒に消えます。元に戻せません。</p></div></div>';
 
   out += '<div class="sec"><div class="sec-h"><span class="eyebrow">COURSES</span><h2>コース</h2></div><div class="card grid">'
     + state.courses.map(function(c){
@@ -1557,9 +1584,16 @@ document.getElementById("view").addEventListener("click", async function(e){
     setTimeout(scrollTabIntoView, 60); return; }
   if(act === "close-round"){ state.ui.roundId = null; render(); return; }
   if(act === "del-round"){
-    if(!confirm("このラウンドを削除します。よろしいですか？")) return;
-    state.rounds = state.rounds.filter(function(x){ return x.id !== b.dataset.id; });
-    markDirty(); render(); return;
+    var rid = b.dataset.id;
+    var target = state.rounds.filter(function(x){ return x.id === rid; })[0];
+    var ns2 = state.shots.filter(function(x){ return x.roundId === rid; }).length;
+    if(!confirm("このラウンド（"+(target?target.date:"")+"）を削除します。"
+      + (ns2 ? "計測した飛距離データ"+ns2+"球も一緒に消えます。" : "")
+      + "元に戻せません。よろしいですか？")) return;
+    state.rounds = state.rounds.filter(function(x){ return x.id !== rid; });
+    state.shots = state.shots.filter(function(x){ return x.roundId !== rid; });
+    if(state.ui.roundId === rid) state.ui.roundId = null;
+    markDirty(); lockScroll = true; render(); toast("ラウンドを削除しました"); return;
   }
   if(act === "go-analysis"){ go("analysis"); return; }
   if(act === "go-gps"){ go("gps"); return; }
@@ -1811,6 +1845,21 @@ document.getElementById("view").addEventListener("click", async function(e){
     var nc = document.getElementById("newclub").value.trim();
     if(nc && state.clubs.indexOf(nc) < 0){ state.clubs.push(nc); markDirty(); render(); }
     return;
+  }
+  if(act === "club-up" || act === "club-down"){
+    var ci = Number(b.dataset.i);
+    var cj = act === "club-up" ? ci-1 : ci+1;
+    if(cj < 0 || cj >= state.clubs.length) return;
+    var tmp = state.clubs[ci]; state.clubs[ci] = state.clubs[cj]; state.clubs[cj] = tmp;
+    markDirty(); lockScroll = true; render(); return;
+  }
+  if(act === "del-all-rounds"){
+    if(!confirm("すべてのラウンド（"+state.rounds.length+"件）と、それに紐づく飛距離データを削除します。元に戻せません。よろしいですか？")) return;
+    var ids = state.rounds.map(function(x){ return x.id; });
+    state.rounds = [];
+    state.shots = state.shots.filter(function(x){ return ids.indexOf(x.roundId) < 0; });
+    state.ui.roundId = null;
+    markDirty(); lockScroll = true; render(); toast("すべてのラウンドを削除しました"); return;
   }
   if(act === "del-club-name"){
     state.clubs = state.clubs.filter(function(c){ return c !== b.dataset.v; });
