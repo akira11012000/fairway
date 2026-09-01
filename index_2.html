@@ -708,9 +708,12 @@ function viewRound(){
   state.ui.hole = idx;
   var out = '';
   out += '<div class="rbar">'
-    + '<div class="rbar-top"><b>'+esc(r.courseName)+'</b>'
-    + '<span class="hint">'+esc(r.date)+' '+weekdayJa(r.date)+'</span>'
-    + '<button class="btn sm ghost" data-act="close-round">一覧</button></div>'
+    + '<div class="rbar-top"><b style="flex:1;min-width:0">'+esc(r.courseName)+'</b>'
+    + '<button class="btn sm ghost" style="white-space:nowrap;flex:none" data-act="close-round">一覧</button></div>'
+    + '<div class="row" style="gap:8px;margin-top:4px">'
+    + '<input type="date" id="round-date" data-act="round-date" value="'+esc(r.date)+'" '
+    + 'style="width:auto;min-height:36px;padding:2px 8px;font-size:14px">'
+    + '<span class="hint">'+weekdayJa(r.date)+'</span></div>'
     + '<div class="rbar-tot" id="r-tot">'+totalsHtml(r)+'</div>'
     + '<div class="holetabs" id="hole-tabs">'+tabsHtml(r, idx)+'</div>'
     + '</div>';
@@ -1456,7 +1459,10 @@ function viewData(){
     + (state.rounds.length ? state.rounds.map(function(x){
         var t = roundTotals(x);
         var ns = state.shots.filter(function(y){ return y.roundId === x.id; }).length;
-        return '<div class="listrow"><span class="meta"><b>'+esc(x.date)+'</b> '+weekdayJa(x.date)+'<br>'
+        return '<div class="listrow"><span class="meta">'
+          + '<input type="date" data-act="round-date-row" data-id="'+x.id+'" value="'+esc(x.date)+'" '
+          + 'style="width:auto;min-height:36px;padding:2px 8px;font-size:14px">'
+          + ' <span class="hint">'+weekdayJa(x.date)+'</span><br>'
           + esc(x.courseName)+'　'+(t.holes?t.score+'打':'未入力')+'（'+t.holes+'ホール'+(ns?'・計測'+ns+'球':'')+'）</span>'
           + '<span class="sp"></span>'
           + '<button data-act="resume" data-id="'+x.id+'">開く</button>'
@@ -1971,12 +1977,14 @@ document.getElementById("view").addEventListener("click", async function(e){
 /* ---- 入力系 ---- */
 document.getElementById("view").addEventListener("change", function(e){
   if(e.target.id === "acourse"){ state.ui.analysisCourse = e.target.value; render(); return; }
-  if(e.target.id === "round-date"){
-    var r = currentRound(); if(!r) return;
+  if(e.target.id === "round-date" || (e.target.dataset && e.target.dataset.act === "round-date-row")){
     var v = e.target.value;
     if(!/^\d{4}-\d{2}-\d{2}$/.test(v)){ toast("日付を選び直してください"); return; }
+    var rid = e.target.dataset.id;
+    var r = rid ? state.rounds.filter(function(x){ return x.id === rid; })[0] : currentRound();
+    if(!r) return;
     r.date = v; r.updatedAt = Date.now(); sortRounds(); markDirty();
-    lockScroll = true; render(); toast("プレー日を "+v+" にしました");
+    lockScroll = true; render(); toast("プレー日を "+v+" "+weekdayJa(v)+" にしました");
     return;
   }
 });
