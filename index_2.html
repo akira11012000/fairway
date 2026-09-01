@@ -435,6 +435,7 @@ function weekdayJa(d){
   if(isNaN(dt.getTime())) return "";
   return "（"+["日","月","火","水","木","金","土"][dt.getDay()]+"）";
 }
+function stamped(base, ext){ return base + "_" + today() + "." + ext; }
 function today(){ var d = new Date(); return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); }
 function markDirty(){ dirty = true; saveLocal(); paintCloudStatus(); }
 
@@ -1485,9 +1486,40 @@ function viewData(){
     + '<div><button class="btn" data-act="add-course">コースを追加</button></div></div></div></div>';
 
   out += '<div class="sec"><div class="sec-h"><span class="eyebrow">RESTORE</span><h2>データの復元</h2></div><div class="card grid">'
-    + '<textarea id="importjson" placeholder="バックアップJSONを貼り付けてください"></textarea>'
-    + '<div class="row"><button class="btn" data-act="import">読み込む（既存データに追加）</button></div></div></div>';
+    + '<div><label class="f">方法1：バックアップファイルから戻す</label>'
+    + '<input type="file" id="importfile" accept=".json,application/json,text/plain" '
+    + 'style="padding:10px;border:1px dashed var(--line);background:var(--surface-2)">'
+    + '<p class="hint" style="margin-top:6px">ダウンロードした pocketcoach_backup_日付.json を選ぶだけで復元できます。</p></div>'
+    + '<div style="border-top:1px solid var(--grid);padding-top:12px">'
+    + '<label class="f">方法2：コピーした文字を貼り付けて戻す</label>'
+    + '<textarea id="importjson" placeholder="バックアップの文字列を貼り付けてください"></textarea>'
+    + '<div class="row" style="margin-top:8px"><button class="btn" data-act="import">貼り付けた内容を読み込む</button></div></div>'
+    + '<div id="importlog"></div>'
+    + '<p class="hint">どちらも「既存データに追加」です。いま入っている記録は消えません。'
+    + '同じラウンドが両方にある場合は、新しく更新されたほうが残ります。</p></div></div>';
   return out;
+}
+
+function applyImport(text){
+  var d3;
+  try{ d3 = JSON.parse(text); }
+  catch(err){ toast("バックアップの内容を読み取れませんでした"); return false; }
+  if(!d3 || (!d3.rounds && !d3.shots && !d3.clubs)){ toast("バックアップの形式ではありません"); return false; }
+  var before = {r:state.rounds.length, s:state.shots.length};
+  state.rounds = mergeById(state.rounds, d3.rounds);
+  state.shots = mergeById(state.shots, d3.shots);
+  state.courses = mergeById(state.courses, d3.courses);
+  if(d3.clubs && d3.clubs.length) state.clubs = d3.clubs;
+  if(d3.settings) state.settings = {stride: d3.settings.stride || state.settings.stride,
+                                    gpsBlocked: !!(d3.settings.gpsBlocked || state.settings.gpsBlocked)};
+  sortRounds();
+  markDirty(); lockScroll = true; render();
+  var log = document.getElementById("importlog");
+  var msg = "ラウンド " + before.r + " → " + state.rounds.length + " 件、"
+          + "計測 " + before.s + " → " + state.shots.length + " 球になりました。";
+  if(log) log.innerHTML = '<div class="note"><b>復元しました。</b><div class="hint" style="margin-top:4px">'+esc(msg)+'</div></div>';
+  toast("復元しました");
+  return true;
 }
 
 /* ============================ CSV ============================ */
@@ -1869,8 +1901,8 @@ document.getElementById("view").addEventListener("click", async function(e){
 
   /* --- データ管理 --- */
   if(act === "cloud-save"){ await cloudSave(); return; }
-  if(act === "dl-csv"){ await download("golf_scores.csv", csvScores()); return; }
-  if(act === "dl-shots"){ await download("club_distances.csv", csvShots()); return; }
+  if(act === "dl-csv"){ await download(stamped("pocketcoach_scores", "csv"), csvScores()); return; }
+  if(act === "dl-shots"){ await download(stamped("pocketcoach_distances", "csv"), csvShots()); return; }
   if(act === "copy-json"){
     var js = JSON.stringify({settings:state.settings, clubs:state.clubs, courses:state.courses, rounds:state.rounds, shots:state.shots});
     var box2 = document.getElementById("jsonout");
@@ -1881,7 +1913,8 @@ document.getElementById("view").addEventListener("click", async function(e){
     return;
   }
   if(act === "dl-json"){
-    await download("fairway_backup.json", JSON.stringify({clubs:state.clubs, courses:state.courses, rounds:state.rounds, shots:state.shots}, null, 1));
+    await download(stamped("pocketcoach_backup", "json"),
+      JSON.stringify({settings:state.settings, clubs:state.clubs, courses:state.courses, rounds:state.rounds, shots:state.shots}, null, 1));
     return;
   }
   if(act === "add-club-name"){
@@ -1929,15 +1962,7 @@ document.getElementById("view").addEventListener("click", async function(e){
     markDirty(); render(); toast("コースを追加しました"); return;
   }
   if(act === "import"){
-    try{
-      var d3 = JSON.parse(document.getElementById("importjson").value);
-      state.rounds = mergeById(state.rounds, d3.rounds);
-      state.shots = mergeById(state.shots, d3.shots);
-      state.courses = mergeById(state.courses, d3.courses);
-      if(d3.clubs) state.clubs = d3.clubs;
-      sortRounds();
-      markDirty(); render(); toast("読み込みました");
-    }catch(err){ toast("JSONを読み取れませんでした"); }
+    applyImport(document.getElementById("importjson").value);
     return;
   }
 });
@@ -1976,6 +2001,15 @@ document.getElementById("view").addEventListener("click", async function(e){
 
 /* ---- 入力系 ---- */
 document.getElementById("view").addEventListener("change", function(e){
+  if(e.target.id === "importfile"){
+    var f = e.target.files && e.target.files[0];
+    if(!f) return;
+    var rd = new FileReader();
+    rd.onload = function(){ applyImport(String(rd.result || "")); };
+    rd.onerror = function(){ toast("ファイルを読み込めませんでした"); };
+    rd.readAsText(f);
+    return;
+  }
   if(e.target.id === "acourse"){ state.ui.analysisCourse = e.target.value; render(); return; }
   if(e.target.id === "round-date" || (e.target.dataset && e.target.dataset.act === "round-date-row")){
     var v = e.target.value;
