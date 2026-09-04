@@ -59,13 +59,13 @@
   --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.3);
 }
 *{box-sizing:border-box}
-body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--sans);font-size:16px;line-height:1.7;-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--sans);font-size:16px;line-height:1.7;-webkit-text-size-adjust:100%;overflow-x:hidden}
 h1,h2,h3{font-family:var(--serif);font-weight:700;text-wrap:balance;margin:0;line-height:1.35}
 button,input,select,textarea{font:inherit;color:inherit}
 button{touch-action:manipulation;-webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none}
 button:active{transform:scale(.97)}
 :focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:4px}
-.app{max-width:1120px;margin:0 auto;padding:0 16px 120px}
+.app{max-width:1120px;margin:0 auto;padding:0 16px 120px;padding-left:calc(16px + env(safe-area-inset-left));padding-right:calc(16px + env(safe-area-inset-right))}
 
 /* ---- header ---- */
 .topbar{display:flex;align-items:center;gap:12px;padding:18px 0 14px;border-bottom:1px solid var(--line);flex-wrap:wrap}
@@ -187,8 +187,8 @@ ul.coach li{margin-bottom:6px}
 .pcell[aria-selected="true"]{border-color:var(--s2);background:var(--accent-soft)}
 
 /* ---- 一覧行（クラブ並べ替え・ラウンド管理） ---- */
-.listrow{display:flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:10px;padding:6px 10px;background:var(--surface);flex-wrap:wrap}
-.listrow .nm{font-family:var(--serif);font-size:17px;min-width:46px}
+.listrow{display:flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:10px;padding:5px 10px;background:var(--surface);flex-wrap:wrap}
+.listrow .nm{font-family:var(--serif);font-size:17px;min-width:46px;flex:0 1 auto;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .listrow .meta{font-size:13px;color:var(--ink-2);line-height:1.4}
 .listrow .sp{margin-left:auto}
 .listrow button{min-width:40px;height:40px;border-radius:9px;border:1px solid var(--line);background:var(--surface-2);font-size:15px;cursor:pointer;padding:0 10px;white-space:nowrap;flex:none}
@@ -222,8 +222,10 @@ ul.coach li{margin-bottom:6px}
 .keypad{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-top:10px}
 .keypad button{min-height:54px;border-radius:12px;border:1px solid var(--line);background:var(--surface-2);font-size:21px;font-weight:700;cursor:pointer;font-variant-numeric:tabular-nums}
 .keypad button.clear{font-size:14px;color:var(--muted);font-weight:500}
-.teerow{display:grid;grid-template-columns:repeat(auto-fit,minmax(86px,1fr));gap:8px;margin-top:6px}
-.teerow button{min-height:50px;border-radius:12px;border:1px solid var(--line);background:var(--surface);font-size:15px;cursor:pointer}
+.teemain{width:100%;min-height:52px;border-radius:12px;border:1px solid var(--line);background:var(--surface);font-size:16px;font-weight:700;cursor:pointer;margin-bottom:8px}
+.teemain[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
+.teerow{display:grid;gap:8px}
+.teerow button{min-height:50px;border-radius:12px;border:1px solid var(--line);background:var(--surface);font-size:15px;cursor:pointer;padding:0 4px;min-width:0}
 .teerow button[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--on-accent);font-weight:700}
 .counters{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:6px}
 .counter{border:1px solid var(--line);border-radius:12px;padding:6px 4px;text-align:center}
@@ -249,7 +251,10 @@ ul.coach li{margin-bottom:6px}
   .rbar{position:sticky;top:0;z-index:25;box-shadow:0 6px 14px rgba(0,0,0,.06)}
 }
 @media (max-width:640px){
-  .app{padding:0 12px 130px}
+  .app{padding:0 12px 130px;padding-left:calc(12px + env(safe-area-inset-left));padding-right:calc(12px + env(safe-area-inset-right))}
+  .card{padding:14px}
+  .blk{margin-top:13px}
+  .chips button{padding:0 12px}
   .two{grid-template-columns:1fr}
   nav.tabs{position:fixed;left:0;right:0;bottom:0;top:auto;border-top:1px solid var(--line);border-bottom:0;padding:6px 8px calc(6px + env(safe-area-inset-bottom));box-shadow:0 -4px 20px rgba(0,0,0,.08)}
   nav.tabs button{font-size:11.5px;padding:6px 5px}
@@ -812,7 +817,7 @@ function scoreLabel(h){
 }
 function cellHtml(field, label, val){
   return '<button class="cell" data-act="sel-field" data-f="'+field+'" aria-selected="'+(state.ui.field===field)+'">'
-    + '<small>'+label+'</small><b>'+(val||val===0?val:'–')+'</b></button>';
+    + '<small>'+label+'</small><b>'+(val ? val : '–')+'</b></button>';
 }
 function keypadHtml(){
   var keys = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,0];
@@ -863,9 +868,13 @@ function holeCardHtml(r, idx){
   if(activePlayers(r).length > 1)
     out += '<p class="hint" style="margin-top:8px">上の枠を押してから数字を押すと、その方のスコアが入ります。</p>';
 
-  /* ティーショット */
-  out += '<div class="blk"><label class="f">ティーショットの方向</label><div class="teerow">'
-    + tees.map(function(o){
+  /* ティーショット（良い結果を大きく、ミスの方向を均等に） */
+  var main = tees[0], rest = tees.slice(1);
+  out += '<div class="blk"><label class="f">ティーショットの方向</label>'
+    + '<button class="teemain" data-act="tee-res" data-v="'+main.k+'" aria-pressed="'+(h.tee===main.k)+'">'
+    + esc(h.par===3 ? 'ワンオン' : 'フェアウェイキープ') + '</button>'
+    + '<div class="teerow" style="grid-template-columns:repeat('+rest.length+',1fr)">'
+    + rest.map(function(o){
         return '<button data-act="tee-res" data-v="'+o.k+'" aria-pressed="'+(h.tee===o.k)+'">'+esc(o.sn||o.n)+'</button>';
       }).join('') + '</div></div>';
   out += '<div class="blk"><label class="f">ティーショットのクラブ</label><div class="chips">'
@@ -873,13 +882,14 @@ function holeCardHtml(r, idx){
         return '<button data-act="tee-club" data-v="'+esc(c)+'" aria-pressed="'+(h.teeClub===c)+'">'+esc(c)+'</button>';
       }).join('') + '</div></div>';
 
-  /* OB・バンカー・ペナルティ（ここに一本化） */
-  out += '<div class="blk"><label class="f">OB・バンカー・ペナルティ</label><div class="counters">'
+  /* OB・バンカー・ペナルティ（1行ずつ） */
+  out += '<div class="blk"><label class="f">OB・バンカー・ペナルティ</label><div class="grid" style="gap:6px">'
     + [['ob','OB'],['bunker','バンカー'],['pen','ペナルティ']].map(function(f){
-        return '<div class="counter"><small>'+f[1]+'</small><div class="cc">'
+        return '<div class="listrow"><span class="nm" style="font-size:14px">'+f[1]+'</span>'
+          + '<span class="sp"></span>'
           + '<button data-act="cnt" data-f="'+f[0]+'" data-d="-1">−</button>'
-          + '<b id="cnt-'+f[0]+'">'+(h[f[0]]||0)+'</b>'
-          + '<button data-act="cnt" data-f="'+f[0]+'" data-d="1">＋</button></div></div>';
+          + '<b id="cnt-'+f[0]+'" class="onum">'+(h[f[0]]||0)+'</b>'
+          + '<button data-act="cnt" data-f="'+f[0]+'" data-d="1">＋</button></div>';
       }).join('') + '</div></div>';
 
   /* オリンピック */
