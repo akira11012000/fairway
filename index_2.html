@@ -868,7 +868,11 @@ function holeCardHtml(r, idx){
   if(activePlayers(r).length > 1)
     out += '<p class="hint" style="margin-top:8px">上の枠を押してから数字を押すと、その方のスコアが入ります。</p>';
 
-  /* ティーショット（良い結果を大きく、ミスの方向を均等に） */
+  /* ティーショット：クラブ → 方向の順 */
+  out += '<div class="blk"><label class="f">ティーショットのクラブ</label><div class="chips">'
+    + state.clubs.filter(function(c){ return c!=='PT'; }).map(function(c){
+        return '<button data-act="tee-club" data-v="'+esc(c)+'" aria-pressed="'+(h.teeClub===c)+'">'+esc(c)+'</button>';
+      }).join('') + '</div></div>';
   var main = tees[0], rest = tees.slice(1);
   out += '<div class="blk"><label class="f">ティーショットの方向</label>'
     + '<button class="teemain" data-act="tee-res" data-v="'+main.k+'" aria-pressed="'+(h.tee===main.k)+'">'
@@ -876,10 +880,6 @@ function holeCardHtml(r, idx){
     + '<div class="teerow" style="grid-template-columns:repeat('+rest.length+',1fr)">'
     + rest.map(function(o){
         return '<button data-act="tee-res" data-v="'+o.k+'" aria-pressed="'+(h.tee===o.k)+'">'+esc(o.sn||o.n)+'</button>';
-      }).join('') + '</div></div>';
-  out += '<div class="blk"><label class="f">ティーショットのクラブ</label><div class="chips">'
-    + state.clubs.filter(function(c){ return c!=='PT'; }).map(function(c){
-        return '<button data-act="tee-club" data-v="'+esc(c)+'" aria-pressed="'+(h.teeClub===c)+'">'+esc(c)+'</button>';
       }).join('') + '</div></div>';
 
   /* OB・バンカー・ペナルティ（3つ横並び） */
@@ -1012,6 +1012,7 @@ var gpsFrom = null, gpsBusy = false, lastMeasure = null;
 var gpsMode = "live"; // "live" = 歩いて計測 / "tap" = 2点タップ
 var live = {watchId:null, from:null, cur:null, dist:0, best:null, err:null};
 var chainFrom = null; // 前のショットの着地点（次のショットの開始地点として引き継ぐ）
+var warm = {watchId:null, fix:null}; // 計測タブを開いている間、GPSを温めておく
 function haversine(a, b){
   var R = 6371000, toR = Math.PI/180;
   var dLat = (b.lat-a.lat)*toR, dLon = (b.lon-a.lon)*toR;
@@ -1152,40 +1153,75 @@ function gpsError(err){
 }
 
 /* ---- 歩いて計測（ライブ追尾） ---- */
+function startWarm(){
+  if(warm.watchId != null || !navigator.geolocation) return;
+  try{
+    warm.watchId = navigator.geolocation.watchPosition(function(p){
+      warm.fix = {lat:p.coords.latitude, lon:p.coords.longitude, acc:p.coords.accuracy, ts:Date.now()};
+      var w = document.getElementById("warm-state");
+      if(w) w.innerHTML = 'GPS受信中（誤差 ±'+Math.round(warm.fix.acc)+'m）';
+    }, function(){}, {enableHighAccuracy:true, maximumAge:2000, timeout:30000});
+  }catch(e){}
+}
+function stopWarm(){
+  if(warm.watchId != null){ try{ navigator.geolocation.clearWatch(warm.watchId); }catch(e){} }
+  warm.watchId = null;
+}
 function stopLive(){
   if(live.watchId != null){ try{ navigator.geolocation.clearWatch(live.watchId); }catch(e){} }
   live.watchId = null;
 }
 function paintLive(){
-  var yds = Math.round(live.dist / YD);
+  var ready = !!(live.from && live.cur);
+  var yds = ready ? Math.round(live.dist / YD) : null;
   var yd = document.getElementById("liveyd");
-  if(yd) yd.textContent = yds;
-  var m = document.getElementById("livemeta");
-  if(m) m.textContent = Math.round(live.dist) + " m ／ 現在の測位誤差 ±" + Math.round(live.cur ? live.cur.acc : 0) + "m";
+  if(yd) yd.textContent = ready ? yds : "–";
+  var st = document.getElementById("live-state");
+  if(st){
+    st.innerHTML = ready
+      ? (Math.round(live.dist) + ' m ／ 測位誤差 ±' + Math.round(live.cur.acc) + 'm'
+         + ((live.fixing && live.dist < 15) ? '　<span style="color:var(--s2)">開始地点を調整中</span>' : ''))
+      : '<span style="color:var(--s2)">測位中… そのままお待ちください</span>';
+  }
   var yd2 = document.getElementById("m-yd");
-  if(yd2) yd2.textContent = yds;
-  var m2 = document.getElementById("m-meta");
-  if(m2) m2.textContent = Math.round(live.dist) + "m ／ 誤差 ±" + Math.round(live.cur ? live.cur.acc : 0) + "m";
+  if(yd2) yd2.textContent = ready ? yds : "–";
 }
 async function startLive(){
-  var btn = document.getElementById("gpsbtn");
-  if(btn){ btn.disabled = true; btn.textContent = "現在地を測っています…"; }
+  /* 待たずにすぐ計測状態へ入る。開始地点は最初の測位で決め、
+     動き出す前（8秒以内・15m以内）はより精度の良い測位で置き換える。 */
+  live.dist = 0; live.cur = null; live.err = null;
+  live.fixing = true; live.startedAt = Date.now();
+  live.from = (warm.fix && Date.now() - warm.fix.ts < 15000) ? warm.fix : null;
+  if(live.from) live.cur = live.from;
   try{
-    var fix = await getFix(12000, 10);
-    live.from = fix; live.cur = fix; live.dist = 0;
     live.watchId = navigator.geolocation.watchPosition(function(p){
-      live.cur = {lat:p.coords.latitude, lon:p.coords.longitude, acc:p.coords.accuracy, ts:p.timestamp};
+      var c = {lat:p.coords.latitude, lon:p.coords.longitude, acc:p.coords.accuracy, ts:Date.now()};
+      warm.fix = c;
+      if(!live.from){
+        live.from = c;
+      } else if(live.fixing && c.acc < live.from.acc && haversine(live.from, c) < 15){
+        live.from = c;               /* まだ動いていないので、より正確な地点に置き換える */
+      }
+      if(Date.now() - live.startedAt > 8000) live.fixing = false;
+      live.cur = c;
       live.dist = haversine(live.from, live.cur);
       paintLive();
-    }, function(){}, {enableHighAccuracy:true, maximumAge:1000, timeout:30000});
-    refreshGps();
-  }catch(err){
-    if(btn){ btn.disabled = false; btn.textContent = "① ボールを打つ位置でタップ"; }
-    gpsError(err);
+    }, function(err){
+      live.err = err;
+      var eo = document.getElementById("live-state");
+      if(eo) eo.innerHTML = '<span style="color:var(--crit)">'
+        + esc((err && err.code === 1) ? "位置情報が許可されていません"
+            : (err && err.code === 2) ? "衛星を捕まえられません。空の開けた場所へ"
+            : "測位できません") + '</span>';
+    }, {enableHighAccuracy:true, maximumAge:2000, timeout:30000});
+  }catch(e){
+    gpsError(e); return;
   }
+  lockScroll = true; render();   /* すぐに②の画面へ切り替える */
 }
 function confirmLive(){
   if(live.watchId == null) return;
+  if(!live.from || !live.cur){ toast("まだ測位できていません。数秒お待ちください"); return; }
   lastMeasure = {club: state.ui.gpsClub, meters: live.dist, yards: live.dist / YD,
                  acc: Math.max(live.from ? live.from.acc : 0, live.cur ? live.cur.acc : 0),
                  method: "gps", endFix: live.cur};
@@ -1258,99 +1294,142 @@ function gpsUnlockPanel(){
     + '<b>「Appの使用中は許可」</b>を選べば計測できます。ラウンド中はそのタブを使い、帰宅後にClaudeのこの画面から「クラウドに保存」を押してください。</div>'
     + '</div>';
 }
+function yardPanel(){
+  return '<div class="grid" style="gap:12px">'
+    + '<p class="hint">コースのヤード杭・スプリンクラーの数字を使う方法です。打つ前と打った後の「グリーンまでの残り距離」を入れると、その差が飛距離になります。</p>'
+    + '<div class="two">'
+    + '<div><label class="f">打つ前の残り距離（yd）</label><input type="number" inputmode="numeric" id="yd-before" data-act="ydcalc" placeholder="例：380"></div>'
+    + '<div><label class="f">打った後の残り距離（yd）</label><input type="number" inputmode="numeric" id="yd-after" data-act="ydcalc" placeholder="例：190"></div>'
+    + '</div>'
+    + '<div style="text-align:center"><div class="readout"><b id="ydcalc">–</b><span>yd</span></div>'
+    + '<div class="hint">この差が ' + esc(state.ui.gpsClub) + ' の飛距離になります</div></div>'
+    + '<button class="gpsbig" data-act="save-yard">この距離を記録する</button>'
+    + '</div>';
+}
+function stepsPanel(){
+  return '<div class="grid" style="gap:12px">'
+    + '<p class="hint">打った地点からボールまでを歩数で数える方法です。歩幅を一度決めておけば、以後は歩数を入れるだけです。</p>'
+    + '<div class="two">'
+    + '<div><label class="f">歩数</label><input type="number" inputmode="numeric" id="st-steps" data-act="stcalc" placeholder="例：160"></div>'
+    + '<div><label class="f">歩幅（cm）</label><input type="number" inputmode="numeric" id="st-stride" data-act="stcalc" value="'+state.settings.stride+'"></div>'
+    + '</div>'
+    + '<div style="text-align:center"><div class="readout"><b id="stcalc">–</b><span>yd</span></div>'
+    + '<div class="hint">歩幅の目安：身長×0.45（170cmなら約76cm）</div></div>'
+    + '<button class="gpsbig" data-act="save-steps">この距離を記録する</button>'
+    + '</div>';
+}
+function coordsPanel(){
+  return '<div class="grid" style="gap:12px">'
+    + '<p class="hint">iPhoneの「ショートカット」アプリで現在地の座標をコピーし、ここに貼り付ける方法です。'
+    + 'ショートカットはブラウザとは別に位置情報の許可を持つため、ブラウザ側で許可が下りない場合でも使えます。</p>'
+    + '<div><label class="f">① 打つ位置の座標</label>'
+    + '<div class="row"><input type="text" id="cd-a" data-act="cdcalc" placeholder="35.712345, 140.123456" style="flex:1;min-width:150px">'
+    + '<button class="btn sm" data-act="paste-a">貼り付け</button></div></div>'
+    + '<div><label class="f">② ボール地点の座標</label>'
+    + '<div class="row"><input type="text" id="cd-b" data-act="cdcalc" placeholder="35.713456, 140.123456" style="flex:1;min-width:150px">'
+    + '<button class="btn sm" data-act="paste-b">貼り付け</button></div></div>'
+    + '<div style="text-align:center"><div class="readout"><b id="cdcalc">–</b><span>yd</span></div>'
+    + '<div class="hint" id="cdmeta">2地点の直線距離</div></div>'
+    + '<button class="gpsbig" data-act="save-coords">この距離を記録する</button>'
+    + '<details style="border-top:1px solid var(--grid);padding-top:10px">'
+    + '<summary style="cursor:pointer;font-size:14px;color:var(--ink-2)">ショートカットの作り方（最初の1回だけ）</summary>'
+    + '<ol style="padding-left:20px;line-height:1.9;margin-top:8px">'
+    + '<li>「<b>ショートカット</b>」アプリを開き、右上の「<b>＋</b>」</li>'
+    + '<li>「<b>現在の場所を取得</b>」を追加</li>'
+    + '<li>続けて「<b>クリップボードにコピー</b>」を追加</li>'
+    + '<li>名前を「<b>いまの座標</b>」にして保存。初回実行時に位置情報を「<b>許可</b>」</li>'
+    + '<li>ホーム画面に追加しておくと1タップで実行できます</li>'
+    + '</ol></details>'
+    + '</div>';
+}
+function clubStatsHtml(cs){
+  if(!cs.length) return '<div class="sec"><div class="empty">まだ計測データがありません。1球ずつ貯めていきましょう。</div></div>';
+  var out = '<div class="sec"><div class="sec-h"><span class="eyebrow">CLUB YARDAGE</span><h2>クラブ別 飛距離データ</h2></div>'
+    + '<div class="card"><div class="chartwrap">'
+    + barsH(cs.map(function(c){
+        return {label:c.club, v:c.useAvg, vlabel:Math.round(c.useAvg)+"y", color:"var(--s1)",
+                tip:c.club+"：平均"+Math.round(c.useAvg)+"y、最長"+Math.round(c.max)+"y、"+c.n+"球"};
+      }), {aria:"クラブ別平均飛距離"})
+    + '</div><div class="scroll-x" style="margin-top:14px"><table><thead><tr><th>クラブ</th><th>球数</th><th>実用平均</th>'
+    + '<th>中央値</th><th>直近5球</th><th>最長</th><th>最短</th><th>ばらつき</th><th>番手差</th></tr></thead><tbody>'
+    + cs.map(function(c, i){
+        var next = cs[i+1];
+        var gap = next ? (c.useAvg - next.useAvg) : null;
+        var gapTxt = gap==null ? "–" : Math.round(gap)+"y"+(gap>=25?" ⚠︎広い":(gap<=8?" ⚠︎重複":""));
+        return '<tr><td><b>'+esc(c.club)+'</b></td><td>'+c.n+'</td><td><b>'+Math.round(c.useAvg)+'</b></td>'
+          + '<td>'+Math.round(c.med)+'</td><td>'+Math.round(c.recent)+'</td><td>'+Math.round(c.max)+'</td>'
+          + '<td>'+Math.round(c.min)+'</td><td>±'+Math.round(c.sd)+'</td><td>'+gapTxt+'</td></tr>';
+      }).join("")
+    + '</tbody></table></div>'
+    + '<p class="hint" style="margin-top:8px">実用平均＝外れ値（IQR法）を除いた平均。番手差が25y以上あるとクラブの「穴」、8y以下だと番手の重複が疑われます。</p>'
+    + '</div></div>';
+  out += '<div class="sec"><div class="sec-h"><span class="eyebrow">LOG</span><h2>計測ログ</h2></div><div class="card scroll-x"><table>'
+    + '<thead><tr><th>日時</th><th>クラブ</th><th>ヤード</th><th>m</th><th>計測方法</th><th>ホール</th><th>打数</th><th></th></tr></thead><tbody>'
+    + state.shots.slice().sort(function(a,b){return b.ts-a.ts;}).slice(0,40).map(function(x){
+        var d = new Date(x.ts);
+        return '<tr><td>'+(d.getMonth()+1)+"/"+d.getDate()+" "+String(d.getHours()).padStart(2,"0")+":"+String(d.getMinutes()).padStart(2,"0")+'</td>'
+          + '<td>'+esc(x.club)+'</td><td><b>'+Math.round(x.yards)+'</b></td><td>'+Math.round(x.meters)+'</td>'
+          + '<td>'+esc(methodLabel(x))+'</td><td>'+(x.hole?x.hole+"番":"–")+'</td>'
+          + '<td>'+(x.shotNo?x.shotNo+"打目":"–")+'</td>'
+          + '<td><button class="btn sm danger" data-act="del-shot" data-id="'+x.id+'">削除</button></td></tr>';
+      }).join("")
+    + '</tbody></table></div></div>';
+  return out;
+}
+
 function viewGps(){
   var r = currentRound();
+  var idx = state.ui.hole;
   var cs = allClubStats();
   var tracking = live.watchId != null;
-  var out = '<div class="sec"><div class="sec-h"><span class="eyebrow">GPS</span><h2>飛距離を計測する</h2></div>';
   var env = gpsEnv();
   var embedded = env.framed && (env.policy === false || state.settings.gpsBlocked);
-  out += '<div class="card grid" style="gap:16px">'
+
+  var out = '<div class="sec"><div class="sec-h"><span class="eyebrow">GPS</span><h2>飛距離を計測する</h2></div>';
+  out += '<div class="card grid" style="gap:14px">'
     + (embedded ? gpsUnlockPanel() : "")
-    + (!env.framed ? '<div class="note"><b>GPSが使える状態で開いています。</b>このタブをそのままお使いください。'
-        + 'ホーム画面に追加しておくと、次回から1タップでこの状態で開けます（Safariの共有ボタン →「ホーム画面に追加」）。</div>' : '')
-    + '<div><label class="f">クラブ</label><div class="chips">'
+    + (!env.framed ? '<div class="note" id="warm-state">GPSの準備をしています…</div>' : '');
+
+  /* ① 記録するホール */
+  if(r){
+    out += '<div><label class="f">記録するホール</label>'
+      + '<div class="holetabs" id="m-holes">'
+      + r.holes.map(function(hh, i){
+          return '<button data-act="m-hole" data-i="'+i+'" aria-current="'+(i===idx)+'" class="'+(hh.score?'done':'')+'">'
+            + '<b>'+(i+1)+'H</b><small>PAR'+hh.par+'</small></button>';
+        }).join('') + '</div></div>';
+    /* ② 何打目 */
+    out += '<div><label class="f">何打目の計測ですか</label><div class="chips">'
+      + [1,2,3,4,5,6].map(function(i){
+          return '<button data-act="m-shotno" data-v="'+i+'" aria-pressed="'+((state.ui.shotNo||1)===i)+'">'+i+'打目</button>';
+        }).join('') + '</div></div>';
+  } else {
+    out += '<p class="hint">「スコア入力」タブでラウンドを開くと、計測した距離がそのホールに記録されます。</p>';
+  }
+
+  /* ③ クラブ */
+  out += '<div><label class="f">クラブ</label><div class="chips">'
     + state.clubs.filter(function(c){ return c!=="PT"; }).map(function(c){
         return '<button data-act="gps-club" data-v="'+esc(c)+'" aria-pressed="'+(state.ui.gpsClub===c)+'">'+esc(c)+'</button>';
-      }).join("") + '</div></div>'
-    + (r ? '<div class="blk"><label class="f">記録するホール</label>'
-        + '<div class="holetabs" id="m-holes">'
-        + r.holes.map(function(hh, i){
-            return '<button data-act="m-hole" data-i="'+i+'" aria-current="'+(i===state.ui.hole)+'" class="'+(hh.score?'done':'')+'">'
-              + '<b>'+(i+1)+'H</b><small>PAR'+hh.par+'</small></button>';
-          }).join('') + '</div></div>'
-        + '<div class="blk"><label class="f">何打目の計測ですか</label><div class="chips">'
-        + [1,2,3,4,5,6].map(function(i){
-            return '<button data-act="m-shotno" data-v="'+i+'" aria-pressed="'+((state.ui.shotNo||1)===i)+'">'+i+'打目</button>';
-          }).join('') + '</div></div>'
-      : '<p class="hint">「スコア入力」タブでラウンドを開くと、計測した距離がそのホールに記録されます。</p>')
-    + '<div><label class="f">計測方式</label><div class="chips">'
-    + '<button data-act="gps-mode" data-v="live" aria-pressed="'+(gpsMode==="live")+'">GPSで歩いて計測</button>'
-    + '<button data-act="gps-mode" data-v="tap" aria-pressed="'+(gpsMode==="tap")+'">GPSで2点タップ</button>'
-    + '<button data-act="gps-mode" data-v="coords" aria-pressed="'+(gpsMode==="coords")+'">座標を貼り付け（ショートカット）</button>'
-    + '<button data-act="gps-mode" data-v="yard" aria-pressed="'+(gpsMode==="yard")+'">予備：残り距離から</button>'
-    + '<button data-act="gps-mode" data-v="steps" aria-pressed="'+(gpsMode==="steps")+'">予備：歩測</button>'
-    + '</div></div>';
+      }).join("") + '</div></div>';
 
-
+  /* ④ 計測パネル */
   if(gpsMode === "coords"){
-    out += '<div class="grid" style="gap:14px">'
-      + '<p class="hint">iPhoneの「ショートカット」アプリで現在地の座標をコピーし、ここに貼り付ける方法です。'
-      + 'ショートカットはSafariとは別に位置情報の許可を持つため、ブラウザ側で許可が下りない場合でもGPSが使えます。</p>'
-      + '<div><label class="f">① 打つ位置の座標</label>'
-      + '<div class="row"><input type="text" id="cd-a" data-act="cdcalc" placeholder="35.712345, 140.123456" style="flex:1;min-width:150px">'
-      + '<button class="btn sm" data-act="paste-a">貼り付け</button></div></div>'
-      + '<div><label class="f">② ボール地点の座標</label>'
-      + '<div class="row"><input type="text" id="cd-b" data-act="cdcalc" placeholder="35.713456, 140.123456" style="flex:1;min-width:150px">'
-      + '<button class="btn sm" data-act="paste-b">貼り付け</button></div></div>'
-      + '<div style="text-align:center"><div class="readout"><b id="cdcalc">–</b><span>yd</span></div>'
-      + '<div class="hint" id="cdmeta">2地点の直線距離</div></div>'
-      + '<button class="gpsbig" data-act="save-coords">この距離を記録する</button>'
-      + '<details style="border-top:1px solid var(--grid);padding-top:10px">'
-      + '<summary style="cursor:pointer;font-size:14px;color:var(--ink-2)">ショートカットの作り方（最初の1回だけ）</summary>'
-      + '<ol style="padding-left:20px;line-height:1.9;margin-top:8px">'
-      + '<li>iPhoneの「<b>ショートカット</b>」アプリを開き、右上の「<b>＋</b>」</li>'
-      + '<li>「アクションを追加」で「<b>現在の場所を取得</b>」を検索して追加</li>'
-      + '<li>続けて「<b>クリップボードにコピー</b>」を検索して追加<br>'
-      + '<span class="hint">「現在の場所」がそのまま入力になります。もし住所になってしまう場合は、間に「テキスト」アクションを入れ、変数の詳細から<b>緯度</b>と<b>経度</b>をカンマ区切りで並べてください。</span></li>'
-      + '<li>名前を「<b>いまの座標</b>」にして保存。初回実行時に位置情報の許可を聞かれるので「<b>許可</b>」</li>'
-      + '<li>ホーム画面に追加しておくと、1タップで座標をコピーできます</li>'
-      + '</ol>'
-      + '<p class="hint">使い方：打つ位置でショートカットを実行 →「①貼り付け」／ボール地点でもう一度実行 →「②貼り付け」→ 記録。</p>'
-      + '</details></div>';
+    out += coordsPanel();
   } else if(gpsMode === "yard"){
-    out += '<div class="grid" style="gap:14px">'
-      + '<p class="hint">コースのヤード杭・スプリンクラーの数字を使う方法です。打つ前と打った後の「グリーンまでの残り距離」を入れると、その差が飛距離になります。ティーショットならホールの全長を「打つ前」に入れてください。</p>'
-      + '<div class="two">'
-      + '<div><label class="f">打つ前の残り距離（yd）</label><input type="number" inputmode="numeric" id="yd-before" data-act="ydcalc" placeholder="例：380"></div>'
-      + '<div><label class="f">打った後の残り距離（yd）</label><input type="number" inputmode="numeric" id="yd-after" data-act="ydcalc" placeholder="例：190"></div>'
-      + '</div>'
-      + '<div style="text-align:center"><div class="readout"><b id="ydcalc">–</b><span>yd</span></div>'
-      + '<div class="hint">この差が ' + esc(state.ui.gpsClub) + ' の飛距離になります</div></div>'
-      + '<button class="gpsbig" data-act="save-yard">この距離を記録する</button>'
-      + '</div>';
+    out += yardPanel();
   } else if(gpsMode === "steps"){
-    out += '<div class="grid" style="gap:14px">'
-      + '<p class="hint">打った地点からボールまでを歩数で数える方法です。歩幅を一度決めておけば、以後は歩数を入れるだけで記録できます。</p>'
-      + '<div class="two">'
-      + '<div><label class="f">歩数</label><input type="number" inputmode="numeric" id="st-steps" data-act="stcalc" placeholder="例：160"></div>'
-      + '<div><label class="f">歩幅（cm）</label><input type="number" inputmode="numeric" id="st-stride" data-act="stcalc" value="'+state.settings.stride+'"></div>'
-      + '</div>'
-      + '<div style="text-align:center"><div class="readout"><b id="stcalc">–</b><span>yd</span></div>'
-      + '<div class="hint">歩幅の目安：身長×0.45（170cmなら約76cm）</div></div>'
-      + '<button class="gpsbig" data-act="save-steps">この距離を記録する</button>'
-      + '</div>';
+    out += stepsPanel();
   } else if(gpsMode === "live"){
     if(tracking){
-      out += '<div style="text-align:center;padding:6px 0">'
-        + '<div class="readout"><b id="liveyd">'+Math.round(live.dist/YD)+'</b><span>yd</span></div>'
-        + '<div class="hint" id="livemeta">'+Math.round(live.dist)+' m ／ 現在の測位誤差 ±'+Math.round(live.cur?live.cur.acc:0)+'m</div></div>'
+      out += '<div style="text-align:center;padding:4px 0">'
+        + '<div class="readout"><b id="liveyd">'+(live.from&&live.cur?Math.round(live.dist/YD):'–')+'</b><span>yd</span></div>'
+        + '<div class="hint" id="live-state">測位中…</div></div>'
         + '<button class="gpsbig" data-act="live-fix" data-armed="1">② ボールの位置で確定する</button>'
-        + '<div class="row"><button class="btn sm ghost" data-act="live-cancel">中止する</button></div>'
-        + '<p class="hint">打った地点からの距離がリアルタイムに更新されます。ボールのところまで歩いて、止まってから「確定」を押してください。</p>';
+        + '<div class="row"><button class="btn sm ghost" data-act="live-cancel">中止する</button></div>';
     } else {
       out += '<button class="gpsbig" id="gpsbtn">① ボールを打つ位置でタップ</button>'
-        + '<div id="gpsout"><p class="hint">立ち止まってからタップすると精度が上がります。GPSの誤差は通常 ±5〜10m（約±6〜11yd）です。</p></div>';
+        + '<div id="gpsout"><p class="hint">立ち止まってタップしてください。タップした瞬間から計測が始まります。</p></div>';
     }
   } else {
     out += '<button class="gpsbig" id="gpsbtn" data-armed="'+(gpsFrom?1:0)+'">'
@@ -1361,17 +1440,29 @@ function viewGps(){
       + '</div>';
   }
 
+  /* 確定後の保存 */
   out += (lastMeasure ? '<div class="note"><b>'+esc(lastMeasure.club)+'　'+Math.round(lastMeasure.yards)+' yd</b>'
-        + '（'+Math.round(lastMeasure.meters)+' m ／ 誤差 ±'+Math.round(lastMeasure.acc)+'m）'
+        + '（'+Math.round(lastMeasure.meters)+' m ／ '+(state.ui.shotNo||1)+'打目'
+        + (lastMeasure.acc?' ／ 誤差 ±'+Math.round(lastMeasure.acc)+'m':'')+'）'
         + '<div class="row" style="margin-top:10px"><button class="btn primary sm" data-act="save-shot">この記録を保存</button>'
-        + '<button class="btn sm ghost" data-act="drop-shot">破棄</button></div></div>' : '')
-    + '<div class="row"><button class="btn sm ghost" data-act="manual-shot">GPSを使わず手入力する</button>'
+        + '<button class="btn sm ghost" data-act="drop-shot">破棄</button></div></div>' : '');
+
+  /* ⑤ 計測方式 */
+  out += '<div style="border-top:1px solid var(--grid);padding-top:12px"><label class="f">計測方式</label><div class="chips">'
+    + '<button data-act="gps-mode" data-v="live" aria-pressed="'+(gpsMode==="live")+'">GPSで歩いて計測</button>'
+    + '<button data-act="gps-mode" data-v="tap" aria-pressed="'+(gpsMode==="tap")+'">GPSで2点タップ</button>'
+    + '<button data-act="gps-mode" data-v="coords" aria-pressed="'+(gpsMode==="coords")+'">座標を貼り付け</button>'
+    + '<button data-act="gps-mode" data-v="yard" aria-pressed="'+(gpsMode==="yard")+'">予備：残り距離から</button>'
+    + '<button data-act="gps-mode" data-v="steps" aria-pressed="'+(gpsMode==="steps")+'">予備：歩測</button>'
+    + '</div></div>';
+
+  out += '<div class="row"><button class="btn sm ghost" data-act="manual-shot">GPSを使わず手入力する</button>'
     + (gpsFrom ? '<button class="btn sm ghost" data-act="gps-reset">計測をやり直す</button>' : '') + '</div>'
-    + (r ? '<p class="hint">記録先：'+esc(r.courseName)+' '+(state.ui.hole+1)+'番ホール '+(state.ui.shotNo||1)+'打目</p>' : '')
+    + (r ? '<p class="hint">記録先：'+esc(r.courseName)+' '+(idx+1)+'番ホール '+(state.ui.shotNo||1)+'打目</p>' : '')
     + (function(){
         var mine = holeShots();
         if(!mine.length) return '';
-        return '<div class="blk"><label class="f">このホールの計測</label>'
+        return '<div><label class="f">このホールの計測</label>'
           + mine.map(function(x){
               return '<div class="shotrow"><span><b>'+(x.shotNo||1)+'打目</b>　'+esc(x.club)+'　'+Math.round(x.yards)+' yd'
                 + '<span class="hint">　'+esc(methodLabel(x))+'</span></span>'
@@ -1379,52 +1470,17 @@ function viewGps(){
             }).join('')
           + '<p class="hint" style="margin-top:6px">合計 '+Math.round(mine.reduce(function(a,x){return a+x.yards;},0))+' yd</p></div>';
       })()
-    + '<details open style="border-top:1px solid var(--grid);padding-top:10px">'
+    + '<details style="border-top:1px solid var(--grid);padding-top:10px">'
     + '<summary style="cursor:pointer;font-size:14px;color:var(--ink-2)">GPSの動作チェックと対処</summary>'
     + '<div id="diag" style="margin-top:10px"></div>'
     + '<div class="row" style="margin-top:10px"><button class="btn sm" data-act="gps-test">測位テストを実行</button>'
     + '<button class="btn sm ghost" data-act="open-tab">新しいタブでこのページを開く</button>'
     + '<button class="btn sm" data-act="copy-diag">診断結果をコピー</button></div>'
-    + '<div id="diagtext"></div>'
-    + '<div id="testout"></div>'
-    + '<p class="hint" style="margin-top:8px">「フレームでのGPS許可」がブロックと出る場合は、新しいタブでこのページを開くと計測できます。</p>'
+    + '<div id="diagtext"></div><div id="testout"></div>'
     + '</details>'
     + '</div></div>';
 
-  if(cs.length){
-    out += '<div class="sec"><div class="sec-h"><span class="eyebrow">CLUB YARDAGE</span><h2>クラブ別 飛距離データ</h2></div>'
-      + '<div class="card"><div class="chartwrap">'
-      + barsH(cs.map(function(c){
-          return {label:c.club, v:c.useAvg, vlabel:Math.round(c.useAvg)+"y", color:"var(--s1)",
-                  tip:c.club+"：平均"+Math.round(c.useAvg)+"y、最長"+Math.round(c.max)+"y、"+c.n+"球"};
-        }), {aria:"クラブ別平均飛距離"})
-      + '</div><div class="scroll-x" style="margin-top:14px"><table><thead><tr><th>クラブ</th><th>球数</th><th>実用平均</th>'
-      + '<th>中央値</th><th>直近5球</th><th>最長</th><th>最短</th><th>ばらつき</th><th>番手差</th></tr></thead><tbody>'
-      + cs.map(function(c, i){
-          var next = cs[i+1];
-          var gap = next ? (c.useAvg - next.useAvg) : null;
-          var gapTxt = gap==null ? "–" : Math.round(gap)+"y"+(gap>=25?" ⚠︎広い":(gap<=8?" ⚠︎重複":""));
-          return '<tr><td><b>'+esc(c.club)+'</b></td><td>'+c.n+'</td><td><b>'+Math.round(c.useAvg)+'</b></td>'
-            + '<td>'+Math.round(c.med)+'</td><td>'+Math.round(c.recent)+'</td><td>'+Math.round(c.max)+'</td>'
-            + '<td>'+Math.round(c.min)+'</td><td>±'+Math.round(c.sd)+'</td><td>'+gapTxt+'</td></tr>';
-        }).join("")
-      + '</tbody></table></div>'
-      + '<p class="hint" style="margin-top:8px">実用平均＝外れ値（IQR法）を除いた平均。番手差が25y以上あるとクラブの「穴」、8y以下だと番手の重複が疑われます。</p>'
-      + '</div></div>';
-    out += '<div class="sec"><div class="sec-h"><span class="eyebrow">LOG</span><h2>計測ログ</h2></div><div class="card scroll-x"><table>'
-      + '<thead><tr><th>日時</th><th>クラブ</th><th>ヤード</th><th>m</th><th>計測方法</th><th>ホール</th><th>打数</th><th></th></tr></thead><tbody>'
-      + state.shots.slice().sort(function(a,b){return b.ts-a.ts;}).slice(0,40).map(function(s){
-          var d = new Date(s.ts);
-          return '<tr><td>'+(d.getMonth()+1)+"/"+d.getDate()+" "+String(d.getHours()).padStart(2,"0")+":"+String(d.getMinutes()).padStart(2,"0")+'</td>'
-            + '<td>'+esc(s.club)+'</td><td><b>'+Math.round(s.yards)+'</b></td><td>'+Math.round(s.meters)+'</td>'
-            + '<td>'+esc(methodLabel(s))+'</td><td>'+(s.hole?s.hole+"番":"–")+'</td>'
-            + '<td>'+(s.shotNo?s.shotNo+"打目":"–")+'</td>'
-            + '<td><button class="btn sm danger" data-act="del-shot" data-id="'+s.id+'">削除</button></td></tr>';
-        }).join("")
-      + '</tbody></table></div></div>';
-  } else {
-    out += '<div class="sec"><div class="empty">まだ計測データがありません。1球ずつ貯めていきましょう。</div></div>';
-  }
+  out += clubStatsHtml(cs);
   return out;
 }
 
@@ -1941,13 +1997,13 @@ function render(){
     b.setAttribute("aria-current", b.dataset.tab === t ? "true" : "false");
   });
   paintCloudStatus();
-  if(t === "gps") paintDiag();
+  if(t === "gps"){ paintDiag(); startWarm(); }
   if(t === "round") setTimeout(scrollTabIntoView, 30);
   if(!lockScroll) window.scrollTo({top:0, behavior:"instant"});
   lockScroll = false;
 }
 var lockScroll = false;
-function go(tab){ if(tab !== "gps") stopLive(); state.ui.tab = tab; render(); }
+function go(tab){ if(tab !== "gps"){ stopLive(); stopWarm(); } state.ui.tab = tab; render(); }
 
 document.getElementById("tabs").addEventListener("click", function(e){
   var b = e.target.closest("button[data-tab]"); if(!b) return;
