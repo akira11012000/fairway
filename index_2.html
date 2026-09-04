@@ -84,6 +84,8 @@ nav.tabs button[aria-current="true"]{background:var(--accent);color:var(--on-acc
 /* ---- generic ---- */
 .card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:18px;box-shadow:var(--shadow)}
 .grid{display:grid;gap:14px}
+.grid>*{min-width:0}
+.holetabs{max-width:100%}
 .sec{margin-top:26px}
 .sec-h{display:flex;align-items:baseline;gap:12px;margin-bottom:12px;flex-wrap:wrap}
 .sec-h h2{font-size:20px}
@@ -169,6 +171,12 @@ svg.chart .pt{fill:var(--accent);stroke:var(--surface);stroke-width:2}
 .note b{color:var(--accent)}
 ul.coach{margin:0;padding-left:20px}
 ul.coach li{margin-bottom:6px}
+
+.pgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.pcell{border:2px solid var(--line);border-radius:12px;background:var(--surface-2);padding:6px 2px;text-align:center;cursor:pointer;min-height:62px;display:flex;flex-direction:column;justify-content:center;gap:1px}
+.pcell small{font-size:11px;color:var(--muted);font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:0 4px}
+.pcell b{font-family:var(--serif);font-size:26px;line-height:1;font-variant-numeric:tabular-nums}
+.pcell[aria-selected="true"]{border-color:var(--s2);background:var(--accent-soft)}
 
 /* ---- 一覧行（クラブ並べ替え・ラウンド管理） ---- */
 .listrow{display:flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:10px;padding:6px 10px;background:var(--surface);flex-wrap:wrap}
@@ -275,14 +283,25 @@ var DEFAULT_CLUBS = ["1W","3W","5W","7W","9W","6U","7U","8U","PU","PW","GW","SW"
 var PREV_CLUBS_V2 = ["1W","3W","5W","7W","9W","6U","7U","8U","PU","PW","GW","SW"];
 var OLD_DEFAULT_CLUBS = ["1W","3W","5W","7W","U4","U5","6I","7I","8I","9I","PW","AW","SW","PT"];
 var TEE_RESULTS = [
-  {k:"FW", n:"フェアウェイ", sn:"キープ"},{k:"L", n:"左ラフ", sn:"左"},{k:"R", n:"右ラフ", sn:"右"},
-  {k:"B", n:"バンカー", sn:"バンカー"},{k:"OB", n:"OB", sn:"OB"},{k:"P", n:"池・ペナ", sn:"池"},{k:"-", n:"未記録", sn:"–"}
+  {k:"FW", n:"フェアウェイキープ", sn:"キープ"},{k:"L", n:"左", sn:"左"},
+  {k:"R", n:"右", sn:"右"},{k:"S", n:"手前（ショート）", sn:"手前"},{k:"-", n:"未記録", sn:"–"}
 ];
 var TEE_RESULTS_P3 = [
-  {k:"ON", n:"ワンオン", sn:"ワンオン"},{k:"S", n:"グリーン手前", sn:"手前"},{k:"O", n:"グリーン奥", sn:"奥"},
-  {k:"L", n:"左に外す", sn:"左"},{k:"R", n:"右に外す", sn:"右"},
-  {k:"B", n:"バンカー", sn:"バンカー"},{k:"OB", n:"OB", sn:"OB"},{k:"P", n:"池・ペナ", sn:"池"},{k:"-", n:"未記録", sn:"–"}
+  {k:"ON", n:"ワンオン", sn:"ワンオン"},{k:"S", n:"手前", sn:"手前"},{k:"O", n:"奥", sn:"奥"},
+  {k:"L", n:"左", sn:"左"},{k:"R", n:"右", sn:"右"},{k:"-", n:"未記録", sn:"–"}
 ];
+
+/* ④ 目標レベル */
+var GOALS = {
+  "100": {label:"100切り", score:100, fw:40, parOn:10, bogeyOn:55, putts:36, ob:2.0,
+          focus:"ダブルボギー以上を減らすこと"},
+  "90":  {label:"90切り",  score:90,  fw:55, parOn:20, bogeyOn:70, putts:33, ob:1.0,
+          focus:"ボギーオンを確実にし、3パットをなくすこと"},
+  "80":  {label:"80切り",  score:80,  fw:65, parOn:40, bogeyOn:85, putts:30, ob:0.5,
+          focus:"パーオン率を上げ、寄せワンの確率を高めること"}
+};
+function goal(){ return GOALS[state.settings.goal] || GOALS["90"]; }
+
 var STORE_KEY = "fairway-notebook-v1";
 
 var SEED_COURSES = [
@@ -294,7 +313,7 @@ var SEED_COURSES = [
 
 /* ============================ 状態 ============================ */
 var state = {
-  settings: {stride: 75, gpsBlocked: false},
+  settings: {stride: 75, gpsBlocked: false, goal: "90", olyRate: 100},
   clubs: DEFAULT_CLUBS.slice(),
   courses: SEED_COURSES.map(function(c){return JSON.parse(JSON.stringify(c));}),
   rounds: [],
@@ -348,7 +367,8 @@ function bootState(){
   });
   state.courses = courses;
   var st = (local && local.settings) || base.settings || {};
-  state.settings = {stride: st.stride || 75, gpsBlocked: !!st.gpsBlocked};
+  state.settings = {stride: st.stride || 75, gpsBlocked: !!st.gpsBlocked,
+                    goal: st.goal || "90", olyRate: st.olyRate || 100};
   gpsMode = "live";
   state.clubs = (local && local.clubs) || (base.clubs) || DEFAULT_CLUBS.slice();
   // 旧初期セットのままなら、新しいクラブセットに置き換える
@@ -562,19 +582,22 @@ function viewHome(){
   return h;
 }
 function kpiBlock(a){
-  function k(name, val, unit, meta, ratio){
+  var g = goal();
+  function k(name, val, unit, meta, ratio, ok){
     return '<div class="kpi"><div class="k">'+name+'</div><div class="v">'+val+(unit?'<span>'+unit+'</span>':'')+'</div>'
       + (meta?'<div class="m">'+meta+'</div>':'')
-      + (ratio!=null?'<div class="meter"><i style="width:'+Math.min(100,Math.max(3,ratio))+'%"></i></div>':'')+'</div>';
+      + (ratio!=null?'<div class="meter"><i style="width:'+Math.min(100,Math.max(3,ratio))+'%;background:'
+          +(ok?'var(--good)':'var(--accent)')+'"></i></div>':'')+'</div>';
   }
   return '<div class="kpis">'
-    + k("平均スコア", fmt(a.avgScore,1), "", "ベスト "+a.best+" ／ ワースト "+a.worst)
-    + k("平均パット", fmt(a.avgPutts,1), "/R", "目標 30 以下", Math.min(100, 30/a.avgPutts*100))
-    + k("FWキープ率", a.fwRate==null?"–":a.fwRate, "%", "目標 70%", a.fwRate/70*100)
-    + k("パーオン率", a.parOnRate+"", "%", "目標 20%", a.parOnRate/20*100)
-    + k("ボギーオン率", a.bogeyOnRate+"", "%", "目標 70%", a.bogeyOnRate/70*100)
-    + k("OB", fmt(a.obPerRound,1), "/R", "目標 1回以下", Math.min(100, 1/Math.max(a.obPerRound,0.01)*100))
-    + '</div>';
+    + k("平均スコア", fmt(a.avgScore,1), "", "目標 "+g.score+"未満（"+g.label+"）", Math.min(100, g.score/a.avgScore*100), a.avgScore < g.score)
+    + k("平均パット", fmt(a.avgPutts,1), "/R", "目標 "+g.putts+" 以下", Math.min(100, g.putts/a.avgPutts*100), a.avgPutts <= g.putts)
+    + k("FWキープ率", a.fwRate==null?"–":a.fwRate, "%", "目標 "+g.fw+"%", a.fwRate/g.fw*100, a.fwRate >= g.fw)
+    + k("パーオン率", a.parOnRate+"", "%", "目標 "+g.parOn+"%", a.parOnRate/g.parOn*100, a.parOnRate >= g.parOn)
+    + k("ボギーオン率", a.bogeyOnRate+"", "%", "目標 "+g.bogeyOn+"%", a.bogeyOnRate/g.bogeyOn*100, a.bogeyOnRate >= g.bogeyOn)
+    + k("OB", fmt(a.obPerRound,1), "/R", "目標 "+g.ob+"回以下", Math.min(100, g.ob/Math.max(a.obPerRound,0.01)*100), a.obPerRound <= g.ob)
+    + '</div>'
+    + '<p class="hint" style="margin-top:8px">目標は「<b>'+g.label+'</b>」の基準です。「データ」タブで変更できます。</p>';
 }
 
 /* ============================ 集計 ============================ */
@@ -647,14 +670,33 @@ function parGroups(rounds){
 }
 
 /* ============================ 画面：スコア入力 ============================ */
+function normalizeRound(r){
+  if(!r) return r;
+  if(!r.players) r.players = ["","",""];
+  if(r.olympic === undefined) r.olympic = false;
+  if(!r.olyRate) r.olyRate = state.settings.olyRate || 100;
+  if(r.finished === undefined) r.finished = false;
+  r.holes.forEach(function(h){
+    if(!h.others) h.others = [0,0,0];
+    if(!h.oly) h.oly = [0,0,0,0];
+  });
+  return r;
+}
+function activePlayers(r){
+  var list = [{i:0, name:"自分"}];
+  (r.players||[]).forEach(function(n, k){
+    if(n && n.trim()) list.push({i:k+1, name:n.trim()});
+  });
+  return list;
+}
 function sortRounds(){
   state.rounds.sort(function(x,y){ return (x.date < y.date ? 1 : x.date > y.date ? -1 : 0); });
 }
 function currentRound(){
-  for(var i=0;i<state.rounds.length;i++) if(state.rounds[i].id === state.ui.roundId) return state.rounds[i];
+  for(var i=0;i<state.rounds.length;i++) if(state.rounds[i].id === state.ui.roundId) return normalizeRound(state.rounds[i]);
   return null;
 }
-function newRound(courseId, date){
+function newRound(courseId, date, opts){
   var c = state.courses.filter(function(x){ return x.id === courseId; })[0] || state.courses[0];
   var pars = [], yards = [];
   for(var loop=0; loop<(c.loop||1); loop++){
@@ -663,8 +705,13 @@ function newRound(courseId, date){
   var r = {
     id: uid("r"), date: (date && /^\d{4}-\d{2}-\d{2}$/.test(date)) ? date : today(),
     courseId: c.id, courseName: c.name, weather: "", memo: "",
+    players: (opts && opts.players) ? opts.players.slice(0,3) : ["","",""],
+    olympic: !!(opts && opts.olympic),
+    olyRate: (opts && opts.olyRate) || state.settings.olyRate || 100,
+    finished: false,
     holes: pars.map(function(p, i){
-      return {par:p, yard:yards[i], score:0, putts:0, tee:"-", teeClub:"", clubs:[], ob:0, bunker:0, pen:0, note:""};
+      return {par:p, yard:yards[i], score:0, putts:0, tee:"-", teeClub:"", clubs:[],
+              ob:0, bunker:0, pen:0, note:"", others:[0,0,0], oly:[0,0,0,0]};
     }),
     updatedAt: Date.now()
   };
@@ -690,6 +737,16 @@ function viewRound(){
           }).join("");
         })()
       + '</select></div>'
+      + '<div><label class="f">同伴競技者（任意・最大3名）</label>'
+      + '<div class="grid" style="gap:6px">'
+      + [0,1,2].map(function(i){
+          return '<input type="text" id="np'+i+'" placeholder="'+(i+1)+'人目の名前" maxlength="8">';
+        }).join('') + '</div>'
+      + '<p class="hint" style="margin-top:6px">名前を入れた方の分だけ、各ホールでスコアを入力できます。</p></div>'
+      + '<div><label class="f">オリンピック</label>'
+      + '<div class="row"><label class="row" style="gap:6px;cursor:pointer">'
+      + '<input type="checkbox" id="np-oly" style="width:22px;height:22px;min-height:0">オリンピックを行う</label>'
+      + '<span class="row" style="gap:4px">1点＝<input type="number" id="np-rate" value="'+(state.settings.olyRate||100)+'" style="width:90px;min-height:40px">円</span></div></div>'
       + '<div class="row"><button class="btn primary" data-act="create-round">このコースで開始</button>'
       + '<button class="btn ghost" data-act="go-data">コースを追加・編集</button></div></div>';
     if(state.rounds.length){
@@ -718,8 +775,8 @@ function viewRound(){
     + '<div class="rbar-tot" id="r-tot">'+totalsHtml(r)+'</div>'
     + '<div class="holetabs" id="hole-tabs">'+tabsHtml(r, idx)+'</div>'
     + '</div>';
-  out += '<div class="card" id="m-panel">'+measureHtml()+'</div>';
-  out += '<div class="card blk" id="hole-card">'+holeCardHtml(r, idx)+'</div>';
+  out += '<div class="card" id="hole-card">'+holeCardHtml(r, idx)+'</div>';
+  out += '<div id="finish-card">'+finishHtml(r)+'</div>';
   return out;
 }
 
@@ -751,6 +808,30 @@ function keypadHtml(){
   return keys.map(function(k){ return '<button data-act="key" data-v="'+k+'">'+k+'</button>'; }).join('')
     + '<button class="clear" data-act="key" data-v="-1">消す</button>';
 }
+function playerCellsHtml(r, h){
+  var ps = activePlayers(r);
+  if(ps.length < 2) return '';
+  return '<div class="blk"><label class="f">同伴競技者のスコア</label><div class="pgrid">'
+    + ps.slice(1).map(function(p){
+        var k = p.i - 1;
+        var f = 'o' + k;
+        return '<button class="pcell" data-act="sel-field" data-f="'+f+'" aria-selected="'+(state.ui.field===f)+'">'
+          + '<small>'+esc(p.name)+'</small><b>'+(h.others[k] ? h.others[k] : '–')+'</b></button>';
+      }).join('') + '</div>'
+    + '<p class="hint" style="margin-top:6px">名前を押してから数字を押すと、その方のスコアが入ります。</p></div>';
+}
+function olympicHtml(r, h){
+  if(!r.olympic) return '';
+  var ps = activePlayers(r);
+  return '<div class="blk"><label class="f">オリンピック（このホールの点数）</label><div class="grid" style="gap:6px">'
+    + ps.map(function(p){
+        return '<div class="listrow"><span class="nm" style="font-size:14px">'+esc(p.name)+'</span>'
+          + '<span class="sp"></span>'
+          + '<button data-act="oly" data-i="'+p.i+'" data-d="-1">−</button>'
+          + '<b style="font-family:var(--serif);font-size:22px;min-width:26px;text-align:center">'+(h.oly[p.i]||0)+'</b>'
+          + '<button data-act="oly" data-i="'+p.i+'" data-d="1">＋</button></div>';
+      }).join('') + '</div></div>';
+}
 function holeCardHtml(r, idx){
   var h = r.holes[idx];
   var tees = (h.par===3?TEE_RESULTS_P3:TEE_RESULTS).filter(function(o){ return o.k!=='-'; });
@@ -759,28 +840,35 @@ function holeCardHtml(r, idx){
     + (h.yard?'<span class="hint">'+h.yard+'y</span>':'')
     + '<span class="scorelabel" id="h-label">'+scoreLabel(h)+'</span></div>';
 
-  /* ② ティーショット */
-  out += '<label class="f">ティーショットの結果</label><div class="teerow">'
+  /* スコア（自分） */
+  out += '<div class="cells">' + cellHtml('score','自分のスコア',h.score) + cellHtml('putts','PUTT',h.putts) + '</div>';
+  out += '<div class="keypad">'+keypadHtml()+'</div>';
+
+  /* 同伴競技者 */
+  out += playerCellsHtml(r, h);
+
+  /* ティーショット */
+  out += '<div class="blk"><label class="f">ティーショットの方向</label><div class="teerow">'
     + tees.map(function(o){
         return '<button data-act="tee-res" data-v="'+o.k+'" aria-pressed="'+(h.tee===o.k)+'">'+esc(o.sn||o.n)+'</button>';
-      }).join('') + '</div>';
+      }).join('') + '</div></div>';
   out += '<div class="blk"><label class="f">ティーショットのクラブ</label><div class="chips">'
     + state.clubs.filter(function(c){ return c!=='PT'; }).map(function(c){
         return '<button data-act="tee-club" data-v="'+esc(c)+'" aria-pressed="'+(h.teeClub===c)+'">'+esc(c)+'</button>';
       }).join('') + '</div></div>';
 
-  /* ③ スコア入力 */
-  out += '<div class="blk"><label class="f">スコア入力</label>'
-    + '<div class="cells">' + cellHtml('score','スコア',h.score) + cellHtml('putts','PUTT',h.putts) + '</div>'
-    + '<div class="keypad">'+keypadHtml()+'</div></div>';
-
-  out += '<div class="blk"><div class="counters">'
+  /* OB・バンカー・ペナルティ（ここに一本化） */
+  out += '<div class="blk"><label class="f">OB・バンカー・ペナルティ</label><div class="counters">'
     + [['ob','OB'],['bunker','バンカー'],['pen','ペナルティ']].map(function(f){
         return '<div class="counter"><small>'+f[1]+'</small><div class="cc">'
           + '<button data-act="cnt" data-f="'+f[0]+'" data-d="-1">−</button><b>'+(h[f[0]]||0)+'</b>'
           + '<button data-act="cnt" data-f="'+f[0]+'" data-d="1">＋</button></div></div>';
       }).join('') + '</div></div>';
 
+  /* オリンピック */
+  out += olympicHtml(r, h);
+
+  /* 自動判定 */
   out += '<div class="blk"><div class="row" id="judge">'
     + '<span class="pill '+(parOn(h)?'on':'')+'">パーオン '+(h.score?(parOn(h)?'○':'×'):'–')+'</span>'
     + '<span class="pill '+(bogeyOn(h)?'on':'')+'">ボギーオン '+(h.score?(bogeyOn(h)?'○':'×'):'–')+'</span>'
@@ -796,66 +884,76 @@ function holeCardHtml(r, idx){
   return out;
 }
 
-/* ---- 同一画面の飛距離計測 ---- */
-function measureHtml(){
-  var r = currentRound();
-  var idx = state.ui.hole;
-  var tracking = live.watchId != null;
-  var env = gpsEnv();
-  var blocked = env.framed && (env.policy === false || state.settings.gpsBlocked);
-  var mine = holeShots();
-  var n = state.ui.shotNo || 1;
-  var out = '<div class="row" style="justify-content:space-between"><label class="f" style="margin:0">飛距離計測</label>'
-    + '<span class="hint">'+(r?(idx+1)+'番ホール':'ラウンド未選択')+'</span></div>';
-  if(blocked){
-    out += '<div class="note" style="border-color:var(--crit);margin-top:8px"><b>この画面ではGPSが使えません</b>'
-      + '<div class="hint" style="margin-top:4px">埋め込み表示のため位置情報がブロックされています。単独URLで開くか、下の手入力をお使いください。</div></div>';
+/* ---- ⑤ ラウンド終了・⑥ オリンピック精算 ---- */
+function olySettle(r){
+  var ps = activePlayers(r);
+  var pts = ps.map(function(p){
+    return r.holes.reduce(function(a,h){ return a + (h.oly[p.i]||0); }, 0);
+  });
+  var n = ps.length, rate = r.olyRate || 100;
+  /* 総当たり方式：各人と他全員との点差×レートの合計 */
+  var net = pts.map(function(v){
+    var sum = 0;
+    pts.forEach(function(w){ sum += (v - w); });
+    return sum * rate;
+  });
+  /* 支払いの組み合わせ（少ない回数で精算） */
+  var cred = [], debt = [];
+  ps.forEach(function(p, i){
+    if(net[i] > 0) cred.push({name:p.name, v:net[i]});
+    else if(net[i] < 0) debt.push({name:p.name, v:-net[i]});
+  });
+  cred.sort(function(a,b){ return b.v-a.v; }); debt.sort(function(a,b){ return b.v-a.v; });
+  var pay = [], ci = 0, di = 0;
+  while(ci < cred.length && di < debt.length){
+    var m = Math.min(cred[ci].v, debt[di].v);
+    if(m > 0) pay.push({from:debt[di].name, to:cred[ci].name, v:m});
+    cred[ci].v -= m; debt[di].v -= m;
+    if(cred[ci].v <= 0) ci++;
+    if(debt[di].v <= 0) di++;
   }
-  out += '<div class="blk" style="margin-top:10px"><label class="f">何打目の計測ですか</label><div class="chips">'
-    + [1,2,3,4,5,6].map(function(i){
-        return '<button data-act="m-shotno" data-v="'+i+'" aria-pressed="'+(n===i)+'">'+i+'打目</button>';
-      }).join('') + '</div></div>';
-  out += '<div class="blk"><label class="f">クラブ</label><div class="chips">'
-    + state.clubs.filter(function(c){ return c!=='PT'; }).map(function(c){
-        return '<button data-act="m-club" data-v="'+esc(c)+'" aria-pressed="'+(state.ui.gpsClub===c)+'">'+esc(c)+'</button>';
-      }).join('') + '</div></div>';
-
-  if(lastMeasure){
-    out += '<div class="mdist" style="margin-top:12px">'+Math.round(lastMeasure.yards)+'<span>yd</span></div>'
-      + '<p class="hint" style="text-align:center">'+n+'打目 ／ '+esc(lastMeasure.club)+' ／ '+Math.round(lastMeasure.meters)+'m'
-      + (lastMeasure.acc?' ／ 誤差 ±'+Math.round(lastMeasure.acc)+'m':'')+'</p>'
-      + '<div class="navrow"><button data-act="m-drop">破棄する</button>'
-      + '<button class="primary" data-act="m-save">このホールに保存</button></div>';
-  } else if(tracking){
-    out += '<div class="mdist" style="margin-top:12px"><b id="m-yd">'+Math.round(live.dist/YD)+'</b><span>yd</span></div>'
-      + '<p class="hint" style="text-align:center" id="m-meta">'+Math.round(live.dist)+'m ／ 誤差 ±'+Math.round(live.cur?live.cur.acc:0)+'m</p>'
-      + '<button class="mbtn stop" data-act="m-stop">② ボール地点で計測終了（'+n+'打目）</button>'
-      + '<div class="row" style="margin-top:8px"><button class="btn sm ghost" data-act="m-cancel">中止</button></div>';
-  } else {
-    if(chainFrom && n > 1){
-      out += '<button class="mbtn" data-act="m-continue" style="margin-top:12px">▶ ここから続けて '+n+'打目を計測</button>'
-        + '<p class="hint" style="text-align:center;margin:6px 0 0">前のショットの着地点（＝今いる場所）を開始地点として使います。<br>移動してしまった場合は下の①をお使いください。</p>'
-        + '<button class="btn" style="width:100%;margin-top:10px" data-act="m-start">① 今いる位置から測り直す</button>';
-    } else {
-      out += '<button class="mbtn" id="m-start" data-act="m-start" style="margin-top:12px">① この位置から'+n+'打目を計測</button>';
-    }
-    out += '<div class="row" style="margin-top:8px"><button class="btn sm ghost" data-act="m-manual">手入力</button>'
-      + '<button class="btn sm ghost" data-act="go-gps">計測タブを開く</button></div>'
-      + '<div id="m-err"></div>';
+  return {players:ps, pts:pts, net:net, pay:pay, rate:rate};
+}
+function yen(v){ return (v<0?"−":"") + "¥" + Math.abs(Math.round(v)).toLocaleString("ja-JP"); }
+function finishHtml(r){
+  var t = roundTotals(r);
+  var ps = activePlayers(r);
+  if(!t.complete && !r.finished) return '';
+  var out = '<div class="card blk">';
+  out += '<h3 style="margin-top:0;font-size:17px">' + (r.finished ? 'ラウンド終了' : '18ホール入力完了') + '</h3>';
+  out += '<div class="scroll-x"><table><thead><tr><th>プレーヤー</th><th>合計</th>'
+    + (r.olympic ? '<th>オリンピック</th><th>収支</th>' : '') + '</tr></thead><tbody>';
+  var st = r.olympic ? olySettle(r) : null;
+  ps.forEach(function(p, i){
+    var total = p.i === 0 ? t.score
+      : r.holes.reduce(function(a,h){ return a + (h.others[p.i-1]||0); }, 0);
+    out += '<tr><td><b>'+esc(p.name)+'</b></td><td><b>'+(total||'–')+'</b>'
+      + (p.i===0 ? ' <span class="hint">('+(t.vsPar>=0?'+':'')+t.vsPar+')</span>' : '') + '</td>'
+      + (st ? '<td>'+st.pts[i]+'点</td><td style="color:'+(st.net[i]>0?'var(--good)':st.net[i]<0?'var(--crit)':'var(--muted)')+'"><b>'+yen(st.net[i])+'</b></td>' : '')
+      + '</tr>';
+  });
+  out += '</tbody></table></div>';
+  if(st){
+    out += '<div class="blk"><label class="f">精算（1点＝'+st.rate+'円・総当たり）</label>'
+      + (st.pay.length
+          ? st.pay.map(function(x){
+              return '<div class="shotrow"><span><b>'+esc(x.from)+'</b> → '+esc(x.to)+'</span><b>'+yen(x.v)+'</b></div>';
+            }).join('')
+          : '<p class="hint">精算はありません（全員同点）。</p>')
+      + '</div>';
   }
-
-  if(mine.length){
-    out += '<div class="blk"><label class="f">このホールの計測</label>'
-      + mine.map(function(x){
-          return '<div class="shotrow"><span><b>'+(x.shotNo||1)+'打目</b>　'+esc(x.club)+'　'+Math.round(x.yards)+' yd'
-            + '<span class="hint">　'+esc(methodLabel(x))+'</span></span>'
-            + '<button class="btn sm danger" data-act="del-shot" data-id="'+x.id+'">削除</button></div>';
-        }).join('')
-      + '<p class="hint" style="margin-top:6px">合計 '+Math.round(mine.reduce(function(a,x){return a+x.yards;},0))+' yd</p></div>';
-  }
+  out += '<p class="hint" style="margin-top:8px">自分のスコア '+t.score+'打／パット '+t.putts
+    + '／FWキープ '+(t.fwA?Math.round(t.fwH/t.fwA*100)+'%':'–')
+    + '／パーオン '+(t.holes?Math.round(t.pOn/t.holes*100):0)+'%</p>';
+  out += '<div class="navrow">'
+    + (r.finished
+        ? '<button data-act="reopen-round">編集を再開する</button><button class="primary" data-act="go-analysis">分析を見る</button>'
+        : '<button data-act="close-round">あとで</button><button class="primary" data-act="finish-round">ラウンドを終了する</button>')
+    + '</div></div>';
   return out;
 }
 
+/* ---- 同一画面の飛距離計測 ---- */
 /* ---- 部分更新（画面全体を作り直さない） ---- */
 function patchHole(){
   var r = currentRound(); if(!r) return;
@@ -865,17 +963,16 @@ function patchHole(){
   if(tot) tot.innerHTML = totalsHtml(r);
   var tabs = document.getElementById('hole-tabs');
   if(tabs) tabs.innerHTML = tabsHtml(r, state.ui.hole);
+  var fin = document.getElementById('finish-card');
+  if(fin) fin.innerHTML = finishHtml(r);
 }
-function patchMeasure(){
-  var m = document.getElementById('m-panel');
-  if(m) m.innerHTML = measureHtml();
-}
+function patchMeasure(){ lockScroll = true; render(); }
 function scrollTabIntoView(){
   var el = document.querySelector('#hole-tabs button[aria-current="true"]');
   if(el && el.parentNode) el.parentNode.scrollTo({left: Math.max(0, el.offsetLeft - 110), behavior:'smooth'});
 }
 function refreshGps(){
-  if(state.ui.tab === 'round') patchMeasure();
+  if(state.ui.tab === 'gps') patchMeasure();
   else { lockScroll = true; render(); }
 }
 
@@ -1059,7 +1156,8 @@ async function startLive(){
 function confirmLive(){
   if(live.watchId == null) return;
   lastMeasure = {club: state.ui.gpsClub, meters: live.dist, yards: live.dist / YD,
-                 acc: Math.max(live.from ? live.from.acc : 0, live.cur ? live.cur.acc : 0)};
+                 acc: Math.max(live.from ? live.from.acc : 0, live.cur ? live.cur.acc : 0),
+                 method: "gps", endFix: live.cur};
   stopLive(); live.from = null; live.cur = null; live.dist = 0;
   lockScroll = true; render();
 }
@@ -1109,7 +1207,7 @@ function recordShot(yards, method, acc){
     courseName: rr ? rr.courseName : "", hole: rr ? state.ui.hole+1 : null, updatedAt: Date.now()
   });
   markDirty();
-  if(state.ui.tab === "round"){ patchMeasure(); }
+  if(state.ui.tab === "gps"){ patchMeasure(); }
   else { lockScroll = true; render(); }
   toast(state.ui.gpsClub + " " + Math.round(yards) + "yd を記録しました");
 }
@@ -1144,6 +1242,17 @@ function viewGps(){
     + state.clubs.filter(function(c){ return c!=="PT"; }).map(function(c){
         return '<button data-act="gps-club" data-v="'+esc(c)+'" aria-pressed="'+(state.ui.gpsClub===c)+'">'+esc(c)+'</button>';
       }).join("") + '</div></div>'
+    + (r ? '<div class="blk"><label class="f">記録するホール</label>'
+        + '<div class="holetabs" id="m-holes">'
+        + r.holes.map(function(hh, i){
+            return '<button data-act="m-hole" data-i="'+i+'" aria-current="'+(i===state.ui.hole)+'" class="'+(hh.score?'done':'')+'">'
+              + '<b>'+(i+1)+'H</b><small>PAR'+hh.par+'</small></button>';
+          }).join('') + '</div></div>'
+        + '<div class="blk"><label class="f">何打目の計測ですか</label><div class="chips">'
+        + [1,2,3,4,5,6].map(function(i){
+            return '<button data-act="m-shotno" data-v="'+i+'" aria-pressed="'+((state.ui.shotNo||1)===i)+'">'+i+'打目</button>';
+          }).join('') + '</div></div>'
+      : '<p class="hint">「スコア入力」タブでラウンドを開くと、計測した距離がそのホールに記録されます。</p>')
     + '<div><label class="f">計測方式</label><div class="chips">'
     + '<button data-act="gps-mode" data-v="live" aria-pressed="'+(gpsMode==="live")+'">GPSで歩いて計測</button>'
     + '<button data-act="gps-mode" data-v="tap" aria-pressed="'+(gpsMode==="tap")+'">GPSで2点タップ</button>'
@@ -1227,7 +1336,18 @@ function viewGps(){
         + '<button class="btn sm ghost" data-act="drop-shot">破棄</button></div></div>' : '')
     + '<div class="row"><button class="btn sm ghost" data-act="manual-shot">GPSを使わず手入力する</button>'
     + (gpsFrom ? '<button class="btn sm ghost" data-act="gps-reset">計測をやり直す</button>' : '') + '</div>'
-    + (r ? '<p class="hint">記録先：'+esc(r.date)+' '+esc(r.courseName)+' の '+(state.ui.hole+1)+'番ホール</p>' : '')
+    + (r ? '<p class="hint">記録先：'+esc(r.courseName)+' '+(state.ui.hole+1)+'番ホール '+(state.ui.shotNo||1)+'打目</p>' : '')
+    + (function(){
+        var mine = holeShots();
+        if(!mine.length) return '';
+        return '<div class="blk"><label class="f">このホールの計測</label>'
+          + mine.map(function(x){
+              return '<div class="shotrow"><span><b>'+(x.shotNo||1)+'打目</b>　'+esc(x.club)+'　'+Math.round(x.yards)+' yd'
+                + '<span class="hint">　'+esc(methodLabel(x))+'</span></span>'
+                + '<button class="btn sm danger" data-act="del-shot" data-id="'+x.id+'">削除</button></div>';
+            }).join('')
+          + '<p class="hint" style="margin-top:6px">合計 '+Math.round(mine.reduce(function(a,x){return a+x.yards;},0))+' yd</p></div>';
+      })()
     + '<details open style="border-top:1px solid var(--grid);padding-top:10px">'
     + '<summary style="cursor:pointer;font-size:14px;color:var(--ink-2)">GPSの動作チェックと対処</summary>'
     + '<div id="diag" style="margin-top:10px"></div>'
@@ -1353,9 +1473,11 @@ function viewAnalysis(){
   return out;
 }
 function coachBlock(a, hs, mix, pg, rounds){
+  var g = goal();
   var strong = hs.filter(function(o){ return o.n >= 2; }).slice().sort(function(x,y){ return x.vsPar - y.vsPar; });
   var weak = strong.slice().reverse();
-  var out = '<div class="two">';
+  var out = '<div class="note" style="margin-bottom:12px"><b>目標：'+g.label+'</b>　いま最も効くのは「'+g.focus+'」です。</div>';
+  out += '<div class="two">';
   out += '<div class="card"><h3 style="font-size:17px;margin-bottom:8px">強み トップ3</h3><ul class="coach">'
     + strong.slice(0,3).map(function(o){
         return '<li><b>'+o.hole+'番（Par'+o.par+'）</b> 平均 '+fmt(o.avg,2)+'（'+(o.vsPar>=0?"+":"")+fmt(o.vsPar,2)+'）'
@@ -1364,19 +1486,31 @@ function coachBlock(a, hs, mix, pg, rounds){
       }).join("") + '</ul></div>';
   out += '<div class="card"><h3 style="font-size:17px;margin-bottom:8px">改善ポイント トップ3</h3><ul class="coach">'
     + weak.slice(0,3).map(function(o){
-        var advice = o.obRate >= 5 ? "ティーは方向性優先。1番手落として置きにいく。"
-                   : o.bkRate >= 15 ? "グリーン手前のバンカーを消す番手選択（1番手上げ）。"
-                   : o.pOnRate < 10 ? "2オン・3オンを狙わず、100y残しの得意距離を作る。"
-                   : "パーオンを狙わず、ボギーオン＋1パットに徹する。";
+        var advice;
+        if(o.obRate >= 5) advice = "ティーは方向性優先。1番手落として置きにいく。";
+        else if(o.bkRate >= 15) advice = "グリーン手前のバンカーを消す番手選択（1番手上げ）。";
+        else if(state.settings.goal === "100") advice = "パーを狙わない。刻んでボギー、最悪でもダボで上がる組み立てに。";
+        else if(state.settings.goal === "90") advice = "ボギーオン＋2パットを確実に。3打目を得意な距離に残す。";
+        else advice = "パーオンを狙える組み立てに。花道から攻め、寄せワンの位置に外す。";
         return '<li><b>'+o.hole+'番（Par'+o.par+'）</b> 平均 '+fmt(o.avg,2)+'（'+(o.vsPar>=0?"+":"")+fmt(o.vsPar,2)+'）'
           + '<br><span class="hint">'+advice+'</span></li>';
       }).join("") + '</ul></div></div>';
 
   var msgs = [];
-  if(a.fwRate != null && a.fwRate < 70) msgs.push("FWキープ率 <b>"+a.fwRate+"%</b>（目標70%）。ティーショットは飛距離より方向。スイングを8割に抑えるだけで平均2〜3打変わります。");
-  if(a.avgPutts > 30) msgs.push("平均パット <b>"+fmt(a.avgPutts,1)+"</b>（目標30）。1m以内の短いパットを1日50球。ここが最も費用対効果の高い練習です。");
-  if(a.obPerRound > 1) msgs.push("OBが1ラウンド <b>"+fmt(a.obPerRound,1)+"回</b>。OB1回＝2打。まずは「OBゼロ」を単独の目標にしましょう。");
-  if(a.bogeyOnRate < 70) msgs.push("ボギーオン率 <b>"+a.bogeyOnRate+"%</b>（目標70%）。パーオンではなくボギーオンを狙う設計にすると、ダブルボギーが確実に減ります。");
+  var lv = state.settings.goal;
+  if(a.fwRate != null && a.fwRate < g.fw) msgs.push("FWキープ率 <b>"+a.fwRate+"%</b>（"+g.label+"の目標 "+g.fw+"%）。"
+    + (lv === "100" ? "ドライバーにこだわらず、3Wやユーティリティでティーショットを打つ日を作ると一気に変わります。"
+     : lv === "90"  ? "スイングを8割に抑え、曲がる側を空けて構えるだけで数％上がります。"
+     : "狙う側を決め、片側を完全に消すマネジメントに切り替えましょう。"));
+  if(a.avgPutts > g.putts) msgs.push("平均パット <b>"+fmt(a.avgPutts,1)+"</b>（目標 "+g.putts+"）。"
+    + (lv === "100" ? "まず3パットをなくすこと。ファーストパットは強さだけに集中し、カップを50cmオーバーさせる。"
+     : lv === "90"  ? "1m以内を1日50球。ここが最も費用対効果の高い練習です。"
+     : "距離感の精度が課題。10m・5m・2mの3距離を打ち分ける練習を。"));
+  if(a.obPerRound > g.ob) msgs.push("OBが1ラウンド <b>"+fmt(a.obPerRound,1)+"回</b>（目標 "+g.ob+"回以下）。OB1回＝2打。まずは「OBゼロ」を単独の目標に。");
+  if(a.bogeyOnRate < g.bogeyOn) msgs.push("ボギーオン率 <b>"+a.bogeyOnRate+"%</b>（目標 "+g.bogeyOn+"%）。"
+    + (lv === "100" ? "Par4は3打でグリーンに乗ればよい、と割り切ると数字が動きます。" : "刻む判断を1ラウンドに2回作ると届きます。"));
+  if(a.parOnRate < g.parOn) msgs.push("パーオン率 <b>"+a.parOnRate+"%</b>（目標 "+g.parOn+"%）。"
+    + (lv === "80" ? "残り100y以内の精度が鍵。ピンではなくグリーン中央を狙う設計に。" : "現段階では無理に上げなくてよい指標です。ボギーオンを優先してください。"));
   if(a.scrRate != null) msgs.push("パーオンを外したホールの寄せワン成功率は <b>"+a.scrRate+"%</b>。50y以内のアプローチを1本のクラブに絞ると安定します。");
   var p3 = pg.filter(function(o){ return o.par === 3 && o.oneRate != null; })[0];
   if(p3 && p3.n >= 4) msgs.push("Par3のワンオン率は <b>"+Math.round(p3.oneRate)+"%</b>（平均 "+fmt(p3.avg,2)+"打）。"
@@ -1385,27 +1519,33 @@ function coachBlock(a, hs, mix, pg, rounds){
   if(a.avgFront != null && a.avgBack != null){
     var diff = a.avgBack - a.avgFront;
     if(Math.abs(diff) >= 1.5) msgs.push(diff > 0
-      ? "後半が前半より平均 <b>"+fmt(diff,1)+"打</b>悪化。体力配分の問題です。前半から歩幅と呼吸を一定に、9番ホール後に必ず水分と補食を。"
-      : "前半が後半より平均 <b>"+fmt(-diff,1)+"打</b>悪い＝立ち上がりが遅いタイプ。スタート30分前のパットとアプローチのウォームアップを固定化しましょう。");
+      ? "後半が前半より平均 <b>"+fmt(diff,1)+"打</b>悪化。体力配分の問題です。9番ホール後に必ず水分と補食を。"
+      : "前半が後半より平均 <b>"+fmt(-diff,1)+"打</b>悪い＝立ち上がりが遅いタイプ。スタート30分前のパットとアプローチを固定化しましょう。");
   }
   var cs = allClubStats();
   if(cs.length >= 2){
     for(var i=0;i<cs.length-1;i++){
       var gap = cs[i].useAvg - cs[i+1].useAvg;
-      if(gap >= 25){ msgs.push("<b>"+cs[i].club+"（"+Math.round(cs[i].useAvg)+"y）と "+cs[i+1].club+"（"+Math.round(cs[i+1].useAvg)+"y）の間に "+Math.round(gap)+"y の空白</b>があります。この距離が残ると必ず無理をすることになります。番手の見直しを。"); break; }
+      if(gap >= 25){ msgs.push("<b>"+cs[i].club+"（"+Math.round(cs[i].useAvg)+"y）と "+cs[i+1].club+"（"+Math.round(cs[i+1].useAvg)+"y）の間に "+Math.round(gap)+"y の空白</b>があります。この距離が残ると必ず無理をすることになります。"); break; }
     }
     var wob = cs.filter(function(c){ return c.n >= 5 && c.sd >= 15; });
     if(wob.length) msgs.push("<b>"+wob[0].club+"</b> はばらつきが ±"+Math.round(wob[0].sd)+"y と大きめ。距離を計算に入れる場面では、平均ではなく短い方（"+Math.round(wob[0].useAvg - wob[0].sd)+"y）を基準にすると大叩きが減ります。");
   } else {
-    msgs.push("クラブ別の飛距離データがまだ足りません。ラウンド中に1ホール1球でも計測すると、番手選択の迷いが消えます（各クラブ5球で傾向が見えます）。");
+    msgs.push("クラブ別の飛距離データがまだ足りません。1ホール1球でも計測すると、番手選択の迷いが消えます（各クラブ5球で傾向が見えます）。");
   }
+  var mixRate = mix.n ? Math.round((mix.m.d + mix.m.t)/mix.n*100) : 0;
+  if(lv === "100" && mixRate > 30) msgs.push("ダブルボギー以上が <b>"+mixRate+"%</b>。100切りはここを20%以下にすれば自然に達成できます。");
+
+  var focus = [];
+  if(a.obPerRound > g.ob) focus.push("OBゼロ。曲がる側を空けて構え、8割スイングで振り抜く。");
+  if(weak[0]) focus.push(weak[0].hole + "番ホールは刻む。" + (lv === "80" ? "花道から攻めてパーオンを狙う。" : "パーを狙わずボギーで上がる。"));
+  if(a.avgPutts > g.putts) focus.push("3パットゼロ。ファーストパットはカップを50cmオーバーさせる。");
+  if(focus.length < 3) focus.push("同じルーティンを18ホール最後まで崩さない。");
+
   out += '<div class="card sec"><h3 style="font-size:17px;margin-bottom:10px">数字が示していること</h3><ul class="coach">'
     + msgs.slice(0,6).map(function(m){ return '<li>'+m+'</li>'; }).join("") + '</ul>'
     + '<h3 style="font-size:17px;margin:18px 0 10px">次のラウンドの重点3つ</h3><ul class="coach">'
-    + [ (a.obPerRound > 1 ? "OBゼロ。曲がる側を空けて構え、8割スイング。" : "ティーショットは常に8割の力で振り抜く。"),
-        (weak[0] ? weak[0].hole + "番ホールは刻む。パーを狙わずボギーで上がる。" : "苦手ホールは刻んでボギーで上がる。"),
-        (a.avgPutts > 30 ? "3パットゼロ。ファーストパットは必ずカップを50cmオーバーさせる。" : "同じルーティンを18ホール最後まで崩さない。") ]
-      .map(function(m){ return '<li>'+esc(m)+'</li>'; }).join("")
+    + focus.slice(0,3).map(function(m){ return '<li>'+esc(m)+'</li>'; }).join("")
     + '</ul></div>';
   return out;
 }
@@ -1437,6 +1577,34 @@ function viewData(){
     + '<p class="hint">通信量をゼロにしたい場合は、電波のある場所でこのページを開いたあと<b>機内モード</b>にしてください。'
     + 'GPSは機内モードでも使えます。ラウンド後に機内モードを解除して「クラウドに保存」を押せば、通信は前後の2回だけで済みます。</p>'
     + '</div></div>';
+
+  out += '<div class="sec"><div class="sec-h"><span class="eyebrow">GOAL</span><h2>目標設定</h2></div><div class="card grid">'
+    + '<div class="chips">'
+    + ["100","90","80"].map(function(k){
+        return '<button data-act="set-goal" data-v="'+k+'" aria-pressed="'+(state.settings.goal===k)+'">'+GOALS[k].label+'</button>';
+      }).join('') + '</div>'
+    + '<div class="scroll-x"><table><thead><tr><th>指標</th>'
+    + ["100","90","80"].map(function(k){ return '<th class="'+(state.settings.goal===k?'':'')+'">'+GOALS[k].label+'</th>'; }).join('')
+    + '</tr></thead><tbody>'
+    + [["平均スコア", function(g){ return g.score+"未満"; }],
+       ["FWキープ率", function(g){ return g.fw+"%以上"; }],
+       ["パーオン率", function(g){ return g.parOn+"%以上"; }],
+       ["ボギーオン率", function(g){ return g.bogeyOn+"%以上"; }],
+       ["平均パット", function(g){ return g.putts+"以下"; }],
+       ["OB", function(g){ return g.ob+"回以下"; }]].map(function(row){
+        return '<tr><td>'+row[0]+'</td>'
+          + ["100","90","80"].map(function(k){
+              return '<td'+(state.settings.goal===k?' style="background:var(--accent-soft);font-weight:700"':'')+'>'+row[1](GOALS[k])+'</td>';
+            }).join('') + '</tr>';
+      }).join('')
+    + '</tbody></table></div>'
+    + '<p class="hint">選んだ目標に合わせて、分析画面の目標値とコーチングの内容が変わります。</p></div></div>';
+
+  out += '<div class="sec"><div class="sec-h"><span class="eyebrow">OLYMPIC</span><h2>オリンピック</h2></div><div class="card grid">'
+    + '<div class="row"><span>1点＝</span><input type="number" id="olyrate" value="'+(state.settings.olyRate||100)+'" style="width:110px">'
+    + '<span>円</span><button class="btn sm" data-act="save-rate">保存</button></div>'
+    + '<p class="hint">精算は総当たり方式（各プレーヤーと1対1で点差×レートをやり取り）で計算します。'
+    + 'レートはラウンド開始時にも設定できます。</p></div></div>';
 
   out += '<div class="sec"><div class="sec-h"><span class="eyebrow">CLUBS</span><h2>クラブセット</h2></div><div class="card grid" style="gap:8px">'
     + state.clubs.map(function(c, i){
@@ -1655,8 +1823,26 @@ document.getElementById("view").addEventListener("click", async function(e){
 
   if(act === "new-round"){ state.ui.roundId = null; go("round"); return; }
   if(act === "create-round"){
-    newRound(document.getElementById("new-course").value, document.getElementById("new-date").value);
+    var names = [0,1,2].map(function(i){
+      var el = document.getElementById("np"+i); return el ? el.value.trim() : "";
+    });
+    var olyOn = !!(document.getElementById("np-oly") || {}).checked;
+    var rate = Number((document.getElementById("np-rate") || {}).value) || 100;
+    state.settings.olyRate = rate;
+    newRound(document.getElementById("new-course").value, document.getElementById("new-date").value,
+             {players:names, olympic:olyOn, olyRate:rate});
     render(); return;
+  }
+  if(act === "finish-round"){
+    var rf = currentRound(); if(!rf) return;
+    if(!confirm("このラウンドを終了します。よろしいですか？（あとから編集を再開できます）")) return;
+    rf.finished = true; rf.updatedAt = Date.now(); markDirty();
+    state.ui.roundId = rf.id; render();
+    toast("ラウンドを終了しました"); return;
+  }
+  if(act === "reopen-round"){
+    var rr2 = currentRound(); if(!rr2) return;
+    rr2.finished = false; rr2.updatedAt = Date.now(); markDirty(); lockScroll = true; render(); return;
   }
   if(act === "resume"){ state.ui.roundId = b.dataset.id;
     var rr = currentRound(); var next = rr.holes.findIndex(function(x){ return !x.score; });
@@ -1684,21 +1870,25 @@ document.getElementById("view").addEventListener("click", async function(e){
     if(act === "prev-hole" || act === "next-hole"){
       state.ui.hole = act === "prev-hole" ? Math.max(0, state.ui.hole-1) : Math.min(r.holes.length-1, state.ui.hole+1);
       state.ui.field = "score"; resetShotNo();
-      patchHole(); patchMeasure(); scrollTabIntoView();
+      patchHole(); scrollTabIntoView();
       window.scrollTo({top:0, behavior:"smooth"});
       return;
     }
     if(act === "hole-tab"){
       state.ui.hole = Number(b.dataset.i); state.ui.field = "score"; resetShotNo();
-      patchHole(); patchMeasure(); scrollTabIntoView();
+      patchHole(); scrollTabIntoView();
       return;
     }
     if(act === "sel-field"){ state.ui.field = b.dataset.f; patchHole(); return; }
     if(act === "key"){
       var v = Number(b.dataset.v);
       var f = state.ui.field || "score";
-      if(v < 0){ h[f] = 0; }
-      else if(f === "score"){
+      if(f.charAt(0) === "o" && f.length === 2){
+        var oi = Number(f.charAt(1));
+        h.others[oi] = v < 0 ? 0 : v;
+      } else if(v < 0){
+        h[f] = 0;
+      } else if(f === "score"){
         h.score = v;
         if(v > 0 && !h.putts) h.putts = 2;
         if(h.putts > h.score) h.putts = h.score;
@@ -1706,6 +1896,11 @@ document.getElementById("view").addEventListener("click", async function(e){
       } else {
         h.putts = Math.min(v, h.score || v);
       }
+      r.updatedAt = Date.now(); markDirty(); patchHole(); return;
+    }
+    if(act === "oly"){
+      var oii = Number(b.dataset.i);
+      h.oly[oii] = Math.max(0, (h.oly[oii]||0) + Number(b.dataset.d));
       r.updatedAt = Date.now(); markDirty(); patchHole(); return;
     }
     if(act === "cnt"){
@@ -1716,83 +1911,24 @@ document.getElementById("view").addEventListener("click", async function(e){
     if(act === "tee-club"){
       h.teeClub = (h.teeClub === b.dataset.v) ? "" : b.dataset.v;
       if(h.teeClub && (state.ui.shotNo || 1) === 1) state.ui.gpsClub = h.teeClub;
-      r.updatedAt = Date.now(); markDirty(); patchHole(); patchMeasure(); return;
+      r.updatedAt = Date.now(); markDirty(); patchHole(); return;
     }
     if(act === "tee-res"){
       h.tee = (h.tee === b.dataset.v) ? "-" : b.dataset.v;
-      if(h.tee === "OB" && !h.ob) h.ob = 1;
-      if(h.tee === "P" && !h.pen) h.pen = 1;
-      if(h.tee === "B" && !h.bunker) h.bunker = 1;
       r.updatedAt = Date.now(); markDirty(); patchHole(); return;
     }
 
-    /* --- 同一画面の計測 --- */
-    if(act === "m-club"){ state.ui.gpsClub = b.dataset.v; patchMeasure(); return; }
-    if(act === "m-start"){
-      if(gpsBusy) return;
-      gpsBusy = true;
-      var sb = document.getElementById("m-start");
-      if(sb){ sb.disabled = true; sb.textContent = "現在地を測っています…"; }
-      try{
-        var fix = await getFix(12000, 10);
-        live.from = fix; live.cur = fix; live.dist = 0;
-        live.watchId = navigator.geolocation.watchPosition(function(pp){
-          live.cur = {lat:pp.coords.latitude, lon:pp.coords.longitude, acc:pp.coords.accuracy, ts:pp.timestamp};
-          live.dist = haversine(live.from, live.cur);
-          paintLive();
-        }, function(){}, {enableHighAccuracy:true, maximumAge:1000, timeout:30000});
-        patchMeasure();
-      }catch(err){
-        patchMeasure();
-        var eo = document.getElementById("m-err");
-        if(eo) eo.innerHTML = '<div class="note" style="border-color:var(--crit);margin-top:10px">'
-          + esc((err && err.code === 1) ? "位置情報が許可されていません。手入力をお使いください。"
-              : (err && err.code === 2) ? "衛星を捕まえられませんでした。空の開けた場所でもう一度お試しください。"
-              : (err && err.code === 3) ? "時間内に測位できませんでした。もう一度お試しください。"
-              : ((err && err.message) || "位置情報を利用できません。")) + '</div>';
-      }finally{ gpsBusy = false; }
-      return;
-    }
-    if(act === "m-stop"){
-      if(live.watchId == null) return;
-      lastMeasure = {club: state.ui.gpsClub, meters: live.dist, yards: live.dist/YD,
-                     acc: Math.max(live.from?live.from.acc:0, live.cur?live.cur.acc:0), method:"gps",
-                     endFix: live.cur};
-      stopLive(); live.from = null; live.cur = null; live.dist = 0;
-      patchMeasure(); return;
-    }
-    if(act === "m-cancel"){ stopLive(); live.from=null; live.cur=null; live.dist=0; patchMeasure(); return; }
-    if(act === "m-drop"){ lastMeasure = null; patchMeasure(); return; }
-    if(act === "m-save"){
-      if(!lastMeasure) return;
-      recordShot(lastMeasure.yards, lastMeasure.method || "gps", lastMeasure.acc);
-      chainFrom = lastMeasure.endFix || null;
-      state.ui.shotNo = Math.min(6, (state.ui.shotNo || 1) + 1);
-      lastMeasure = null;
-      patchMeasure();
-      return;
-    }
-    if(act === "m-shotno"){ state.ui.shotNo = Number(b.dataset.v); patchMeasure(); return; }
-    if(act === "m-continue"){
-      if(!chainFrom){ toast("開始地点が残っていません。①からお試しください"); return; }
-      live.from = chainFrom; live.cur = chainFrom; live.dist = 0;
-      try{
-        live.watchId = navigator.geolocation.watchPosition(function(pp){
-          live.cur = {lat:pp.coords.latitude, lon:pp.coords.longitude, acc:pp.coords.accuracy, ts:pp.timestamp};
-          live.dist = haversine(live.from, live.cur);
-          paintLive();
-        }, function(){}, {enableHighAccuracy:true, maximumAge:1000, timeout:30000});
-      }catch(e){ toast("位置情報を利用できません"); return; }
-      patchMeasure(); return;
-    }
-    if(act === "m-manual"){
-      var my = prompt(state.ui.gpsClub + " の飛距離（ヤード）を入力してください");
-      if(my && !isNaN(Number(my)) && Number(my) > 0){
-        lastMeasure = {club:state.ui.gpsClub, yards:Number(my), meters:Number(my)*YD, acc:0, method:"manual"};
-        patchMeasure();
-      }
-      return;
-    }
+  }
+
+  /* --- 飛距離計測タブ --- */
+  if(act === "m-shotno"){ state.ui.shotNo = Number(b.dataset.v); lockScroll = true; render(); return; }
+  if(act === "m-hole"){
+    state.ui.hole = Number(b.dataset.i); resetShotNo(); lockScroll = true; render();
+    setTimeout(function(){
+      var mh = document.querySelector('#m-holes button[aria-current="true"]');
+      if(mh && mh.parentNode) mh.parentNode.scrollTo({left: Math.max(0, mh.offsetLeft - 110), behavior:'smooth'});
+    }, 30);
+    return;
   }
 
   /* --- GPS --- */
@@ -1881,21 +2017,17 @@ document.getElementById("view").addEventListener("click", async function(e){
   }
   if(act === "save-shot"){
     if(!lastMeasure) return;
-    var rr2 = currentRound();
-    state.shots.push({
-      id: uid("s"), ts: Date.now(), club: lastMeasure.club, yards: lastMeasure.yards,
-      meters: lastMeasure.meters, acc: lastMeasure.acc, method: lastMeasure.method || "gps",
-      roundId: rr2 ? rr2.id : null, courseName: rr2 ? rr2.courseName : "", hole: rr2 ? state.ui.hole+1 : null,
-      updatedAt: Date.now()
-    });
-    lastMeasure = null; gpsFrom = null; markDirty(); lockScroll = true; render(); toast("記録しました");
+    recordShot(lastMeasure.yards, lastMeasure.method || "gps", lastMeasure.acc);
+    chainFrom = lastMeasure.endFix || null;
+    state.ui.shotNo = Math.min(6, (state.ui.shotNo || 1) + 1);
+    lastMeasure = null; gpsFrom = null;
     return;
   }
   if(act === "drop-shot"){ lastMeasure = null; lockScroll = true; render(); return; }
   if(act === "del-shot"){
     state.shots = state.shots.filter(function(s){ return s.id !== b.dataset.id; });
     markDirty();
-    if(state.ui.tab === "round"){ patchMeasure(); } else { lockScroll = true; render(); }
+    if(state.ui.tab === "gps"){ patchMeasure(); } else { lockScroll = true; render(); }
     return;
   }
 
@@ -1921,6 +2053,15 @@ document.getElementById("view").addEventListener("click", async function(e){
     var nc = document.getElementById("newclub").value.trim();
     if(nc && state.clubs.indexOf(nc) < 0){ state.clubs.push(nc); markDirty(); render(); }
     return;
+  }
+  if(act === "set-goal"){
+    state.settings.goal = b.dataset.v; markDirty(); lockScroll = true; render();
+    toast("目標を「"+GOALS[b.dataset.v].label+"」にしました"); return;
+  }
+  if(act === "save-rate"){
+    var rv = Number((document.getElementById("olyrate")||{}).value) || 100;
+    state.settings.olyRate = rv; markDirty(); lockScroll = true; render();
+    toast("1点＝"+rv+"円 に設定しました"); return;
   }
   if(act === "preset-clubs"){
     var presets = {
@@ -2061,11 +2202,8 @@ window.addEventListener("beforeunload", function(e){
 </script>
 
 <script>
-/* オフラインでも起動できるようにサービスワーカーを登録する */
 if ('serviceWorker' in navigator && window.isSecureContext && window.self === window.top) {
-  window.addEventListener('load', function () {
-    navigator.serviceWorker.register('./sw.js').catch(function () {});
-  });
+  window.addEventListener('load', function () { navigator.serviceWorker.register('./sw.js').catch(function () {}); });
 }
 </script>
 </body>
