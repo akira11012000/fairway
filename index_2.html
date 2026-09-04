@@ -62,6 +62,8 @@
 body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--sans);font-size:16px;line-height:1.7;-webkit-text-size-adjust:100%}
 h1,h2,h3{font-family:var(--serif);font-weight:700;text-wrap:balance;margin:0;line-height:1.35}
 button,input,select,textarea{font:inherit;color:inherit}
+button{touch-action:manipulation;-webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none}
+button:active{transform:scale(.97)}
 :focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:4px}
 .app{max-width:1120px;margin:0 auto;padding:0 16px 120px}
 
@@ -78,7 +80,12 @@ button,input,select,textarea{font:inherit;color:inherit}
 
 /* ---- nav ---- */
 nav.tabs{display:flex;gap:2px;position:sticky;top:0;z-index:30;background:var(--paper);padding:8px 0;border-bottom:1px solid var(--line);overflow-x:auto}
-nav.tabs button{flex:1 0 auto;min-height:46px;padding:6px 16px;background:none;border:0;border-radius:8px;color:var(--ink-2);font-weight:500;cursor:pointer;white-space:nowrap}
+nav.tabs button{flex:1 0 auto;min-height:46px;padding:6px 12px;background:none;border:0;border-radius:8px;color:var(--ink-2);font-weight:500;cursor:pointer;white-space:nowrap}
+table.card-tbl{font-size:12px}
+table.card-tbl th,table.card-tbl td{padding:4px 5px;white-space:nowrap}
+table.card-tbl thead th{background:var(--accent);color:#fff}
+table.card-tbl thead tr:nth-child(2) th,table.card-tbl thead tr:nth-child(2) td{background:var(--surface-2);color:var(--ink-2);font-size:11px;border-bottom:1px solid var(--line)}
+table.card-tbl tr.hi td{background:var(--accent-soft)}
 nav.tabs button[aria-current="true"]{background:var(--accent);color:var(--on-accent);font-weight:700}
 
 /* ---- generic ---- */
@@ -222,8 +229,10 @@ ul.coach li{margin-bottom:6px}
 .counter{border:1px solid var(--line);border-radius:12px;padding:6px 4px;text-align:center}
 .counter small{display:block;font-size:11px;color:var(--muted);font-weight:700}
 .counter .cc{display:flex;align-items:center;justify-content:center;gap:8px;margin-top:2px}
-.counter button{width:38px;height:38px;border-radius:10px;border:1px solid var(--line);background:var(--surface-2);font-size:19px;font-weight:700;cursor:pointer}
-.counter b{font-family:var(--serif);font-size:23px;min-width:22px;font-variant-numeric:tabular-nums}
+.counter button{width:46px;height:46px;border-radius:12px;border:1px solid var(--line);background:var(--surface-2);font-size:21px;font-weight:700;cursor:pointer;flex:none}
+.counter b{font-family:var(--serif);font-size:23px;min-width:28px;text-align:center;font-variant-numeric:tabular-nums}
+.listrow button{min-width:46px;height:46px;font-size:19px}
+.onum{font-family:var(--serif);font-size:23px;min-width:30px;text-align:center;font-variant-numeric:tabular-nums;display:inline-block}
 .blk{margin-top:16px}
 .blk>label.f{margin-bottom:6px}
 .mbtn{width:100%;min-height:70px;border-radius:14px;font-family:var(--serif);font-size:20px;font-weight:700;border:1px solid var(--accent);background:var(--accent);color:var(--on-accent);cursor:pointer}
@@ -243,7 +252,7 @@ ul.coach li{margin-bottom:6px}
   .app{padding:0 12px 130px}
   .two{grid-template-columns:1fr}
   nav.tabs{position:fixed;left:0;right:0;bottom:0;top:auto;border-top:1px solid var(--line);border-bottom:0;padding:6px 8px calc(6px + env(safe-area-inset-bottom));box-shadow:0 -4px 20px rgba(0,0,0,.08)}
-  nav.tabs button{font-size:13px;padding:6px 8px}
+  nav.tabs button{font-size:11.5px;padding:6px 5px}
   .kpi .v{font-size:30px}
 }
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
@@ -264,6 +273,7 @@ ul.coach li{margin-bottom:6px}
     <button data-tab="home" aria-current="true">ホーム</button>
     <button data-tab="round">スコア入力</button>
     <button data-tab="gps">飛距離計測</button>
+    <button data-tab="total">合計</button>
     <button data-tab="analysis">分析</button>
     <button data-tab="data">データ</button>
   </nav>
@@ -809,6 +819,12 @@ function keypadHtml(){
   return keys.map(function(k){ return '<button data-act="key" data-v="'+k+'">'+k+'</button>'; }).join('')
     + '<button class="clear" data-act="key" data-v="-1">消す</button>';
 }
+function nextField(r, cur){
+  var order = ["score","putts"];
+  (r.players||[]).forEach(function(n, k){ if(n && n.trim()) order.push("o"+k); });
+  var i = order.indexOf(cur);
+  return (i >= 0 && i < order.length-1) ? order[i+1] : cur;
+}
 function playerCellsHtml(r, h){
   var ps = activePlayers(r);
   if(ps.length < 2) return '';
@@ -828,7 +844,7 @@ function olympicHtml(r, h){
         return '<div class="listrow"><span class="nm" style="font-size:14px">'+esc(p.name)+'</span>'
           + '<span class="sp"></span>'
           + '<button data-act="oly" data-i="'+p.i+'" data-d="-1">−</button>'
-          + '<b style="font-family:var(--serif);font-size:22px;min-width:26px;text-align:center">'+(h.oly[p.i]||0)+'</b>'
+          + '<b id="oly-'+p.i+'" class="onum">'+(h.oly[p.i]||0)+'</b>'
           + '<button data-act="oly" data-i="'+p.i+'" data-d="1">＋</button></div>';
       }).join('') + '</div></div>';
 }
@@ -861,7 +877,8 @@ function holeCardHtml(r, idx){
   out += '<div class="blk"><label class="f">OB・バンカー・ペナルティ</label><div class="counters">'
     + [['ob','OB'],['bunker','バンカー'],['pen','ペナルティ']].map(function(f){
         return '<div class="counter"><small>'+f[1]+'</small><div class="cc">'
-          + '<button data-act="cnt" data-f="'+f[0]+'" data-d="-1">−</button><b>'+(h[f[0]]||0)+'</b>'
+          + '<button data-act="cnt" data-f="'+f[0]+'" data-d="-1">−</button>'
+          + '<b id="cnt-'+f[0]+'">'+(h[f[0]]||0)+'</b>'
           + '<button data-act="cnt" data-f="'+f[0]+'" data-d="1">＋</button></div></div>';
       }).join('') + '</div></div>';
 
@@ -947,8 +964,8 @@ function finishHtml(r){
     + '／パーオン '+(t.holes?Math.round(t.pOn/t.holes*100):0)+'%</p>';
   out += '<div class="navrow">'
     + (r.finished
-        ? '<button data-act="reopen-round">編集を再開する</button><button class="primary" data-act="go-analysis">分析を見る</button>'
-        : '<button data-act="close-round">あとで</button><button class="primary" data-act="finish-round">ラウンドを終了する</button>')
+        ? '<button data-act="reopen-round">編集を再開する</button><button class="primary" data-act="go-total" data-id="'+r.id+'">合計を見る</button>'
+        : '<button data-act="go-total" data-id="'+r.id+'">合計を見る</button><button class="primary" data-act="finish-round">ラウンドを終了する</button>')
     + '</div></div>';
   return out;
 }
@@ -967,6 +984,11 @@ function patchHole(){
   if(fin) fin.innerHTML = finishHtml(r);
 }
 function patchMeasure(){ lockScroll = true; render(); }
+function refreshFinish(){
+  var r = currentRound(); if(!r) return;
+  var fin = document.getElementById('finish-card');
+  if(fin && fin.innerHTML) fin.innerHTML = finishHtml(r);
+}
 function scrollTabIntoView(){
   var el = document.querySelector('#hole-tabs button[aria-current="true"]');
   if(el && el.parentNode) el.parentNode.scrollTo({left: Math.max(0, el.offsetLeft - 110), behavior:'smooth'});
@@ -1397,6 +1419,127 @@ function viewGps(){
   return out;
 }
 
+/* ============================ 画面：合計 ============================ */
+function totalRound(){
+  var id = state.ui.totalRoundId || state.ui.roundId;
+  var r = null;
+  if(id) r = state.rounds.filter(function(x){ return x.id === id; })[0];
+  if(!r) r = state.rounds.filter(function(x){ return roundTotals(x).holes > 0; })[0];
+  return r ? normalizeRound(r) : null;
+}
+function viewTotal(){
+  var r = totalRound();
+  if(!r) return '<div class="sec"><div class="empty">まだラウンドの記録がありません。<br>「スコア入力」タブから始めてください。</div></div>';
+  var ps = activePlayers(r);
+  var n = r.holes.length;
+  var half = Math.floor(n/2);
+  var t = roundTotals(r);
+
+  function pScore(p, i){ return p.i === 0 ? (r.holes[i].score||0) : (r.holes[i].others[p.i-1]||0); }
+  function pSum(p, from, to){
+    var v = 0; for(var i=from;i<to;i++) v += pScore(p, i); return v;
+  }
+
+  var out = '<div class="sec"><div class="sec-h"><span class="eyebrow">TOTAL</span><h2>合計</h2>'
+    + (state.rounds.length > 1
+        ? '<select id="total-round" style="width:auto;min-height:38px;margin-left:auto">'
+          + state.rounds.filter(function(x){ return roundTotals(x).holes > 0; }).slice(0,20).map(function(x){
+              return '<option value="'+x.id+'"'+(x.id===r.id?' selected':'')+'>'+esc(x.date)+'　'+esc(x.courseName)+'</option>';
+            }).join('') + '</select>'
+        : '') + '</div>';
+
+  out += '<div class="card"><div class="row" style="justify-content:space-between;margin-bottom:8px">'
+    + '<b>'+esc(r.courseName)+'</b><span class="hint">'+esc(r.date)+' '+weekdayJa(r.date)
+    + (r.finished ? '　<span class="pill on">終了</span>' : '　'+t.holes+'/'+n+'ホール入力') + '</span></div>';
+
+  /* スコアカード */
+  out += '<div class="scroll-x"><table class="card-tbl"><thead><tr><th>H</th>'
+    + r.holes.map(function(h, i){ return '<th class="c">'+(i+1)+'</th>'; }).join('')
+    + '<th class="c">OUT</th><th class="c">IN</th><th class="c">合計</th></tr>'
+    + '<tr><th>PAR</th>'
+    + r.holes.map(function(h){ return '<td class="c">'+h.par+'</td>'; }).join('')
+    + '<td class="c">'+r.holes.slice(0,half).reduce(function(a,h){return a+h.par;},0)+'</td>'
+    + '<td class="c">'+r.holes.slice(half).reduce(function(a,h){return a+h.par;},0)+'</td>'
+    + '<td class="c"><b>'+r.holes.reduce(function(a,h){return a+h.par;},0)+'</b></td></tr></thead><tbody>';
+  ps.forEach(function(p){
+    var tot = pSum(p, 0, n);
+    out += '<tr'+(p.i===0?' class="hi"':'')+'><td><b>'+esc(p.name)+'</b></td>'
+      + r.holes.map(function(h, i){
+          var v = pScore(p, i);
+          if(!v) return '<td class="c">–</td>';
+          var d = v - h.par;
+          var col = d <= -1 ? 'color:var(--s1);font-weight:700'
+                  : d === 0 ? 'font-weight:700'
+                  : d >= 2 ? 'color:var(--crit)' : '';
+          return '<td class="c" style="'+col+'">'+v+'</td>';
+        }).join('')
+      + '<td class="c">'+(pSum(p,0,half)||'–')+'</td>'
+      + '<td class="c">'+(pSum(p,half,n)||'–')+'</td>'
+      + '<td class="c"><b>'+(tot||'–')+'</b></td></tr>';
+  });
+  out += '<tr><td>パット<span class="hint">（自分）</span></td>'
+    + r.holes.map(function(h){ return '<td class="c">'+(h.score?(h.putts||0):'–')+'</td>'; }).join('')
+    + '<td class="c">'+r.holes.slice(0,half).reduce(function(a,h){return a+(h.score?(h.putts||0):0);},0)+'</td>'
+    + '<td class="c">'+r.holes.slice(half).reduce(function(a,h){return a+(h.score?(h.putts||0):0);},0)+'</td>'
+    + '<td class="c"><b>'+t.putts+'</b></td></tr>';
+  out += '</tbody></table></div>';
+
+  /* 自分のまとめ */
+  out += '<div class="kpis" style="margin-top:14px">'
+    + '<div class="kpi"><div class="k">自分のスコア</div><div class="v">'+(t.holes?t.score:'–')+'<span>'+(t.holes?(t.vsPar>=0?'+':'')+t.vsPar:'')+'</span></div></div>'
+    + '<div class="kpi"><div class="k">パット</div><div class="v">'+t.putts+'</div></div>'
+    + '<div class="kpi"><div class="k">FWキープ</div><div class="v">'+(t.fwA?Math.round(t.fwH/t.fwA*100):'–')+'<span>%</span></div></div>'
+    + '<div class="kpi"><div class="k">OB・ペナルティ</div><div class="v">'+(t.ob+t.pen)+'<span>回</span></div></div>'
+    + '</div></div></div>';
+
+  /* オリンピック */
+  if(r.olympic){
+    var st = olySettle(r);
+    out += '<div class="sec"><div class="sec-h"><span class="eyebrow">OLYMPIC</span><h2>オリンピック</h2>'
+      + '<span class="hint">1点＝'+st.rate+'円・総当たり</span></div><div class="card">';
+    out += '<div class="scroll-x"><table class="card-tbl"><thead><tr><th>H</th>'
+      + r.holes.map(function(h, i){ return '<th class="c">'+(i+1)+'</th>'; }).join('')
+      + '<th class="c">合計</th></tr></thead><tbody>';
+    ps.forEach(function(p, k){
+      out += '<tr'+(p.i===0?' class="hi"':'')+'><td><b>'+esc(p.name)+'</b></td>'
+        + r.holes.map(function(h){
+            var v = h.oly[p.i]||0;
+            return '<td class="c"'+(v?' style="font-weight:700"':' style="color:var(--muted)"')+'>'+v+'</td>';
+          }).join('')
+        + '<td class="c"><b>'+st.pts[k]+'</b></td></tr>';
+    });
+    out += '</tbody></table></div>';
+
+    out += '<div class="blk"><label class="f">収支</label><div class="scroll-x"><table>'
+      + '<thead><tr><th>プレーヤー</th><th class="n">合計点</th><th class="n">収支</th></tr></thead><tbody>'
+      + ps.map(function(p, k){
+          var v = st.net[k];
+          return '<tr><td><b>'+esc(p.name)+'</b></td><td class="n">'+st.pts[k]+'点</td>'
+            + '<td class="n" style="color:'+(v>0?'var(--good)':v<0?'var(--crit)':'var(--muted)')+'"><b>'
+            + (v>0?'受取 ':v<0?'支払 ':'')+yen(v)+'</b></td></tr>';
+        }).join('')
+      + '</tbody></table></div></div>';
+
+    out += '<div class="blk"><label class="f">精算のしかた</label>'
+      + (st.pay.length
+          ? st.pay.map(function(x){
+              return '<div class="shotrow"><span><b>'+esc(x.from)+'</b> さんが <b>'+esc(x.to)+'</b> さんへ</span><b>'+yen(x.v)+'</b></div>';
+            }).join('')
+          : '<p class="hint">全員同点のため精算はありません。</p>')
+      + '</div></div></div>';
+  }
+
+  /* 終了操作 */
+  out += '<div class="sec"><div class="card"><div class="navrow">'
+    + (r.finished
+        ? '<button data-act="reopen-total" data-id="'+r.id+'">編集を再開する</button>'
+          + '<button class="primary" data-act="go-analysis">分析を見る</button>'
+        : '<button data-act="open-round" data-id="'+r.id+'">スコア入力に戻る</button>'
+          + '<button class="primary" data-act="finish-total" data-id="'+r.id+'">ラウンドを終了する</button>')
+    + '</div></div></div>';
+  return out;
+}
+
 /* ============================ 画面：分析 ============================ */
 function viewAnalysis(){
   var complete = state.rounds.filter(function(r){ return roundTotals(r).holes >= 9; });
@@ -1782,6 +1925,7 @@ function render(){
   v.innerHTML = t === "home" ? viewHome()
               : t === "round" ? viewRound()
               : t === "gps" ? viewGps()
+              : t === "total" ? viewTotal()
               : t === "analysis" ? viewAnalysis()
               : viewData();
   Array.prototype.forEach.call(document.querySelectorAll("#tabs button"), function(b){
@@ -1837,7 +1981,7 @@ document.getElementById("view").addEventListener("click", async function(e){
     var rf = currentRound(); if(!rf) return;
     if(!confirm("このラウンドを終了します。よろしいですか？（あとから編集を再開できます）")) return;
     rf.finished = true; rf.updatedAt = Date.now(); markDirty();
-    state.ui.roundId = rf.id; render();
+    state.ui.totalRoundId = rf.id; go("total");
     toast("ラウンドを終了しました"); return;
   }
   if(act === "reopen-round"){
@@ -1862,6 +2006,20 @@ document.getElementById("view").addEventListener("click", async function(e){
     markDirty(); lockScroll = true; render(); toast("ラウンドを削除しました"); return;
   }
   if(act === "go-analysis"){ go("analysis"); return; }
+  if(act === "go-total"){ state.ui.totalRoundId = b.dataset.id || state.ui.roundId; go("total"); return; }
+  if(act === "open-round"){ state.ui.roundId = b.dataset.id; state.ui.hole = 0; state.ui.field = "score"; go("round"); return; }
+  if(act === "finish-total"){
+    var rt = state.rounds.filter(function(x){ return x.id === b.dataset.id; })[0];
+    if(!rt) return;
+    if(!confirm("このラウンドを終了します。よろしいですか？（あとから編集を再開できます）")) return;
+    rt.finished = true; rt.updatedAt = Date.now(); markDirty(); lockScroll = true; render();
+    toast("ラウンドを終了しました"); return;
+  }
+  if(act === "reopen-total"){
+    var rt2 = state.rounds.filter(function(x){ return x.id === b.dataset.id; })[0];
+    if(!rt2) return;
+    rt2.finished = false; rt2.updatedAt = Date.now(); markDirty(); lockScroll = true; render(); return;
+  }
   if(act === "go-gps"){ go("gps"); return; }
   if(act === "go-data"){ go("data"); return; }
   if(act === "measure-here"){ go("gps"); return; }
@@ -1886,27 +2044,33 @@ document.getElementById("view").addEventListener("click", async function(e){
       if(f.charAt(0) === "o" && f.length === 2){
         var oi = Number(f.charAt(1));
         h.others[oi] = v < 0 ? 0 : v;
+        if(v >= 0) state.ui.field = nextField(r, f);
       } else if(v < 0){
         h[f] = 0;
       } else if(f === "score"){
         h.score = v;
         if(v > 0 && !h.putts) h.putts = 2;
         if(h.putts > h.score) h.putts = h.score;
-        state.ui.field = "putts";
+        state.ui.field = nextField(r, "score");
       } else {
         h.putts = Math.min(v, h.score || v);
+        state.ui.field = nextField(r, "putts");
       }
       r.updatedAt = Date.now(); markDirty(); patchHole(); return;
     }
     if(act === "oly"){
       var oii = Number(b.dataset.i);
       h.oly[oii] = Math.max(0, (h.oly[oii]||0) + Number(b.dataset.d));
-      r.updatedAt = Date.now(); markDirty(); patchHole(); return;
+      var oel = document.getElementById("oly-"+oii);
+      if(oel) oel.textContent = h.oly[oii];
+      r.updatedAt = Date.now(); markDirty(); refreshFinish(); return;
     }
     if(act === "cnt"){
       var fc = b.dataset.f;
       h[fc] = Math.max(0, (h[fc]||0) + Number(b.dataset.d));
-      r.updatedAt = Date.now(); markDirty(); patchHole(); return;
+      var cel = document.getElementById("cnt-"+fc);
+      if(cel) cel.textContent = h[fc];
+      r.updatedAt = Date.now(); markDirty(); return;
     }
     if(act === "tee-club"){
       h.teeClub = (h.teeClub === b.dataset.v) ? "" : b.dataset.v;
@@ -2151,6 +2315,7 @@ document.getElementById("view").addEventListener("change", function(e){
     rd.readAsText(f);
     return;
   }
+  if(e.target.id === "total-round"){ state.ui.totalRoundId = e.target.value; lockScroll = true; render(); return; }
   if(e.target.id === "acourse"){ state.ui.analysisCourse = e.target.value; render(); return; }
   if(e.target.id === "round-date" || (e.target.dataset && e.target.dataset.act === "round-date-row")){
     var v = e.target.value;
