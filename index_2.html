@@ -227,12 +227,12 @@ ul.coach li{margin-bottom:6px}
 .teerow{display:grid;gap:8px}
 .teerow button{min-height:50px;border-radius:12px;border:1px solid var(--line);background:var(--surface);font-size:15px;cursor:pointer;padding:0 4px;min-width:0}
 .teerow button[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--on-accent);font-weight:700}
-.counters{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:6px}
-.counter{border:1px solid var(--line);border-radius:12px;padding:6px 4px;text-align:center}
-.counter small{display:block;font-size:11px;color:var(--muted);font-weight:700}
-.counter .cc{display:flex;align-items:center;justify-content:center;gap:8px;margin-top:2px}
-.counter button{width:46px;height:46px;border-radius:12px;border:1px solid var(--line);background:var(--surface-2);font-size:21px;font-weight:700;cursor:pointer;flex:none}
-.counter b{font-family:var(--serif);font-size:23px;min-width:28px;text-align:center;font-variant-numeric:tabular-nums}
+.counters{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:4px}
+.counter{border:1px solid var(--line);border-radius:10px;padding:4px 3px 5px;text-align:center;min-width:0;background:var(--surface)}
+.counter small{display:block;font-size:10.5px;color:var(--muted);font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.counter .cc{display:flex;align-items:center;justify-content:space-between;gap:2px;margin-top:2px}
+.counter button{flex:1 1 auto;min-width:28px;max-width:46px;height:40px;border-radius:9px;border:1px solid var(--line);background:var(--surface-2);font-size:18px;font-weight:700;cursor:pointer;padding:0}
+.counter b{font-family:var(--serif);font-size:20px;min-width:22px;text-align:center;font-variant-numeric:tabular-nums;flex:none}
 .listrow button{min-width:46px;height:46px;font-size:19px}
 .onum{font-family:var(--serif);font-size:23px;min-width:30px;text-align:center;font-variant-numeric:tabular-nums;display:inline-block}
 .blk{margin-top:16px}
@@ -882,14 +882,13 @@ function holeCardHtml(r, idx){
         return '<button data-act="tee-club" data-v="'+esc(c)+'" aria-pressed="'+(h.teeClub===c)+'">'+esc(c)+'</button>';
       }).join('') + '</div></div>';
 
-  /* OB・バンカー・ペナルティ（1行ずつ） */
-  out += '<div class="blk"><label class="f">OB・バンカー・ペナルティ</label><div class="grid" style="gap:6px">'
+  /* OB・バンカー・ペナルティ（3つ横並び） */
+  out += '<div class="blk"><label class="f">OB・バンカー・ペナルティ</label><div class="counters">'
     + [['ob','OB'],['bunker','バンカー'],['pen','ペナルティ']].map(function(f){
-        return '<div class="listrow"><span class="nm" style="font-size:14px">'+f[1]+'</span>'
-          + '<span class="sp"></span>'
+        return '<div class="counter"><small>'+f[1]+'</small><div class="cc">'
           + '<button data-act="cnt" data-f="'+f[0]+'" data-d="-1">−</button>'
-          + '<b id="cnt-'+f[0]+'" class="onum">'+(h[f[0]]||0)+'</b>'
-          + '<button data-act="cnt" data-f="'+f[0]+'" data-d="1">＋</button></div>';
+          + '<b id="cnt-'+f[0]+'">'+(h[f[0]]||0)+'</b>'
+          + '<button data-act="cnt" data-f="'+f[0]+'" data-d="1">＋</button></div></div>';
       }).join('') + '</div></div>';
 
   /* オリンピック */
