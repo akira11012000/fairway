@@ -339,7 +339,7 @@ var SEED_COURSES = [
 
 /* ============================ 状態 ============================ */
 var state = {
-  settings: {stride: 75, gpsBlocked: false, goal: "90"},
+  settings: {stride: 75, gpsBlocked: false, goal: "90", hiddenCourses: []},
   clubs: DEFAULT_CLUBS.slice(),
   courses: SEED_COURSES.map(function(c){return JSON.parse(JSON.stringify(c));}),
   rounds: [],
@@ -385,7 +385,13 @@ function bootState(){
   state.shots  = mergeById(base.shots,  local && local.shots);
   var courses  = mergeById(base.courses, local && local.courses);
   var seedIds = {}; SEED_COURSES.forEach(function(c){seedIds[c.id]=1;});
-  SEED_COURSES.forEach(function(c){ if(!courses.some(function(x){return x.id===c.id;})) courses.push(clone(c)); });
+  var hidden = ((local && local.settings && local.settings.hiddenCourses)
+             || (base.settings && base.settings.hiddenCourses) || []);
+  SEED_COURSES.forEach(function(c){
+    if(hidden.indexOf(c.id) > -1) return;
+    if(!courses.some(function(x){return x.id===c.id;})) courses.push(clone(c));
+  });
+  courses = courses.filter(function(c){ return hidden.indexOf(c.id) < 0; });
   var pri = {"sobu-north":0, "sobu-sobu":1, "sobu-inba":2};
   courses.sort(function(a, b){
     var pa = pri[a.id]===undefined?9:pri[a.id], pb = pri[b.id]===undefined?9:pri[b.id];
@@ -394,7 +400,7 @@ function bootState(){
   state.courses = courses;
   var st = (local && local.settings) || base.settings || {};
   state.settings = {stride: st.stride || 75, gpsBlocked: !!st.gpsBlocked,
-                    goal: st.goal || "90"};
+                    goal: st.goal || "90", hiddenCourses: (st.hiddenCourses || []).slice()};
   gpsMode = "live";
   state.clubs = (local && local.clubs) || (base.clubs) || DEFAULT_CLUBS.slice();
   // 旧初期セットのままなら、新しいクラブセットに置き換える
@@ -1980,14 +1986,20 @@ function viewData(){
 
   out += '<div class="sec"><div class="sec-h"><span class="eyebrow">COURSES</span><h2>コース</h2></div><div class="card grid">'
     + state.courses.map(function(c){
+        var used = state.rounds.filter(function(x){ return x.courseId === c.id; }).length;
         return '<div style="border-bottom:1px solid var(--grid);padding-bottom:10px">'
-          + '<div class="row" style="justify-content:space-between"><b>'+esc(c.name)+(c.id==="sobu-north"?' <span class="pill on">既定</span>':'')+'</b>'
-          + '<span class="hint">'
+          + '<div class="row" style="gap:8px;align-items:flex-start">'
+          + '<div style="flex:1;min-width:0">'
+          + '<b>'+esc(c.name)+'</b>'+(c.id==="sobu-north"?' <span class="pill on">既定</span>':'')
+          + '<div class="hint">'
           + (hasNines(c)
               ? (c.nines.length*9)+'ホール（'+c.nines.map(function(x){return esc(x.name);}).join("・")+'）／Par '
                 + c.nines.reduce(function(a,x){ return a + x.pars.reduce(function(p,q){return p+q;},0); },0)
               : c.pars.length+'ホール'+(c.loop>1?" × "+c.loop+"周":"")+'／Par '+c.pars.reduce(function(a,b){return a+b;},0)*(c.loop||1))
-          + '</span></div>'
+          + (used ? '　<b>記録'+used+'ラウンド</b>' : '')
+          + '</div></div>'
+          + '<button class="btn sm danger" data-act="del-course" data-id="'+esc(c.id)+'" style="flex:none">削除</button>'
+          + '</div>'
           + (hasNines(c)
               ? c.nines.map(function(x){
                   return '<div class="hint">'+esc(x.name)+'　Par: '+x.pars.join(" ・ ")+'</div>';
@@ -1995,11 +2007,15 @@ function viewData(){
               : '<div class="hint">Par: '+c.pars.join(" ・ ")+'</div>')
           + '</div>';
       }).join("")
+    + '<p class="hint">コースを削除しても、記録済みのラウンドとスコアはそのまま残ります（新しいラウンドで選べなくなるだけです）。</p>'
     + '<div class="grid" style="gap:10px;border-top:1px solid var(--line);padding-top:14px">'
     + '<div><label class="f">コース名</label><input type="text" id="cname" placeholder="例：〇〇カントリークラブ 東コース"></div>'
     + '<div class="two"><div><label class="f">Par（スペース区切り）</label><input type="text" id="cpars" placeholder="4 4 3 5 4 4 3 4 5"></div>'
     + '<div><label class="f">周回数（9H×2周なら 2）</label><input type="number" id="cloop" value="1" min="1" max="2"></div></div>'
-    + '<div><button class="btn" data-act="add-course">コースを追加</button></div></div></div></div>';
+    + '<div class="row"><button class="btn" data-act="add-course">コースを追加</button>'
+    + ((state.settings.hiddenCourses && state.settings.hiddenCourses.length)
+        ? '<button class="btn ghost sm" data-act="restore-courses">最初のコースを戻す</button>' : '')
+    + '</div></div></div></div>';
 
   out += '<div class="sec"><div class="sec-h"><span class="eyebrow">RESTORE</span><h2>データの復元</h2></div><div class="card grid">'
     + '<div><label class="f">方法1：バックアップファイルから戻す</label>'
@@ -2469,6 +2485,32 @@ document.getElementById("view").addEventListener("click", async function(e){
   if(act === "del-club-name"){
     state.clubs = state.clubs.filter(function(c){ return c !== b.dataset.v; });
     markDirty(); render(); return;
+  }
+  if(act === "del-course"){
+    var cid2 = b.dataset.id;
+    var tc = state.courses.filter(function(x){ return x.id === cid2; })[0];
+    if(!tc) return;
+    if(state.courses.length <= 1){ toast("最後の1コースは削除できません"); return; }
+    var used2 = state.rounds.filter(function(x){ return x.courseId === cid2; }).length;
+    if(!confirm("コース「"+tc.name+"」を一覧から削除します。"
+      + (used2 ? "このコースで記録した"+used2+"ラウンドのスコアはそのまま残ります（分析にも出ます）。" : "")
+      + "新しいラウンドでは選べなくなります。よろしいですか？")) return;
+    state.courses = state.courses.filter(function(x){ return x.id !== cid2; });
+    if(!state.settings.hiddenCourses) state.settings.hiddenCourses = [];
+    if(state.settings.hiddenCourses.indexOf(cid2) < 0) state.settings.hiddenCourses.push(cid2);
+    markDirty(); lockScroll = true; render(); toast("コースを削除しました"); return;
+  }
+  if(act === "restore-courses"){
+    state.settings.hiddenCourses = [];
+    SEED_COURSES.forEach(function(c){
+      if(!state.courses.some(function(x){ return x.id === c.id; })) state.courses.push(clone(c));
+    });
+    var pri2 = {"sobu-north":0, "sobu-sobu":1, "sobu-inba":2};
+    state.courses.sort(function(a, b){
+      var pa = pri2[a.id]===undefined?9:pri2[a.id], pb = pri2[b.id]===undefined?9:pri2[b.id];
+      return pa - pb;
+    });
+    markDirty(); lockScroll = true; render(); toast("最初のコースを戻しました"); return;
   }
   if(act === "add-course"){
     var nm = document.getElementById("cname").value.trim();
