@@ -138,6 +138,7 @@ tbody tr:hover{background:var(--surface-2)}
 .chips{display:flex;flex-wrap:wrap;gap:8px}
 .chips button{min-height:42px;padding:0 14px;border-radius:999px;border:1px solid var(--line);background:var(--surface);cursor:pointer;font-size:15px}
 .chips button[aria-pressed="true"]{background:var(--accent);color:var(--on-accent);border-color:var(--accent);font-weight:700}
+.chips button .ordno{display:inline-block;margin-left:6px;min-width:18px;height:18px;line-height:18px;border-radius:9px;background:rgba(255,255,255,.28);font-size:11px;font-weight:700}
 .shotlist{display:flex;flex-wrap:wrap;gap:6px;min-height:44px;align-items:center;padding:6px;border:1px dashed var(--line);border-radius:10px}
 .shotlist span{background:var(--accent-soft);color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:4px 8px;font-size:14px;display:inline-flex;gap:6px;align-items:center}
 .shotlist span b{font-family:var(--serif);color:var(--muted);font-size:12px}
@@ -322,6 +323,11 @@ var STORE_KEY = "fairway-notebook-v1";
 
 var SEED_COURSES = [
   {id:"sobu-north", name:"総武カントリー北コース", loop:2, pars:[4,4,4,3,5,4,3,4,4], yards:[0,0,0,0,0,0,0,0,0]},
+  {id:"sobu-sobu", name:"総武カントリー総武コース", nines:[
+    {id:"e", name:"東", pars:[5,4,3,4,4,3,4,5,4], yards:[486,347,167,371,374,163,421,505,368]},
+    {id:"m", name:"中", pars:[5,4,4,3,4,4,3,5,4], yards:[465,367,390,171,388,351,154,508,350]},
+    {id:"w", name:"西", pars:[5,4,4,3,4,4,3,4,5], yards:[482,340,411,152,316,381,153,371,496]}
+  ]},
   {id:"std18", name:"標準18ホール", loop:1,
    pars:[4,4,3,5,4,4,3,4,5,4,4,3,5,4,4,3,4,5],
    yards:[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]}
@@ -334,7 +340,7 @@ var state = {
   courses: SEED_COURSES.map(function(c){return JSON.parse(JSON.stringify(c));}),
   rounds: [],
   shots: [],
-  ui: {tab:"home", roundId:null, hole:0, field:"score", shotNo:1, gpsClub:"1W", analysisCourse:null}
+  ui: {tab:"home", roundId:null, hole:0, field:"score", shotNo:1, gpsClub:"1W", analysisCourse:null, analysisNine:null, newNines:[]}
 };
 var artifactApi = null, downloadsApi = null, dirty = false;
 
@@ -376,10 +382,10 @@ function bootState(){
   var courses  = mergeById(base.courses, local && local.courses);
   var seedIds = {}; SEED_COURSES.forEach(function(c){seedIds[c.id]=1;});
   SEED_COURSES.forEach(function(c){ if(!courses.some(function(x){return x.id===c.id;})) courses.push(clone(c)); });
+  var pri = {"sobu-north":0, "sobu-sobu":1};
   courses.sort(function(a, b){
-    if(a.id === "sobu-north") return -1;
-    if(b.id === "sobu-north") return 1;
-    return 0;
+    var pa = pri[a.id]===undefined?9:pri[a.id], pb = pri[b.id]===undefined?9:pri[b.id];
+    return pa - pb;
   });
   state.courses = courses;
   var st = (local && local.settings) || base.settings || {};
@@ -422,8 +428,43 @@ function courseOf(r){
 }
 function physHole(r, idx){
   var c = courseOf(r);
-  var n = (c && c.loop > 1) ? c.pars.length : r.holes.length;
+  var n = (c && !hasNines(c) && c.loop > 1) ? c.pars.length : r.holes.length;
   return (idx % n) + 1;
+}
+/* 27ホール（東・中・西など）対応のホール表示 */
+function hasNines(c){ return !!(c && c.nines && c.nines.length); }
+function nineOf(c, id){
+  if(!hasNines(c)) return null;
+  for(var i=0;i<c.nines.length;i++) if(c.nines[i].id === id) return c.nines[i];
+  return null;
+}
+function hLabel(r, idx){
+  var h = r.holes[idx];
+  if(h && h.nineName) return h.nineName + (h.nh || (idx+1));
+  return String(idx + 1);
+}
+function holeKey(r, idx){
+  var h = r.holes[idx];
+  if(h && h.nine) return h.nine + "-" + (h.nh || (idx+1));
+  return "h-" + physHole(r, idx);
+}
+function nineNamesOf(r){
+  var c = courseOf(r);
+  if(!r.nines || !r.nines.length || !hasNines(c)) return "";
+  return r.nines.map(function(id){ var nn = nineOf(c, id); return nn ? nn.name : id; }).join("・");
+}
+/* スコアカードの区切り（東/中/西 または OUT/IN） */
+function segments(r){
+  var segs = [], cur = null;
+  if(r.nines && r.nines.length){
+    r.holes.forEach(function(h, i){
+      if(!cur || cur.key !== h.nine){ cur = {key:h.nine, name:(h.nineName||"")+"計", from:i, to:i+1}; segs.push(cur); }
+      else cur.to = i + 1;
+    });
+    return segs;
+  }
+  var half = Math.floor(r.holes.length/2);
+  return [{key:"out", name:"OUT", from:0, to:half}, {key:"in", name:"IN", from:half, to:r.holes.length}];
 }
 
 /* ---- クラブ距離統計 ---- */
@@ -642,13 +683,17 @@ function aggregate(rounds){
   if(a.best === Infinity){ a.best = "–"; a.worst = "–"; }
   return a;
 }
-function holeStats(rounds){
-  var m = {};
+function holeStats(rounds, nineId){
+  var m = {}, ord = 0, seen = {};
   rounds.forEach(function(r){
     r.holes.forEach(function(h, i){
       if(!h.score) return;
-      var p = physHole(r, i);
-      var o = m[p] || (m[p] = {hole:p, par:h.par, n:0, score:0, putts:0, fwA:0, fwH:0, pOn:0, bOn:0, ob:0, bunker:0, pen:0, one:0});
+      if(nineId && h.nine !== nineId) return;
+      var p = holeKey(r, i);
+      if(seen[p] === undefined) seen[p] = ord++;
+      var o = m[p] || (m[p] = {hole:(h.nh || physHole(r, i)), label:hLabel(r, i), nine:h.nine||null,
+              nineName:h.nineName||"", ord:seen[p], par:h.par,
+              n:0, score:0, putts:0, fwA:0, fwH:0, pOn:0, bOn:0, ob:0, bunker:0, pen:0, one:0});
       o.n++; o.score += h.score; o.putts += (h.putts||0);
       o.fwA += fwAttempt(h); o.fwH += fwHit(h); o.pOn += parOn(h); o.bOn += bogeyOn(h); o.one += oneOn(h);
       o.ob += (h.ob||0) + (h.tee==="OB"?0:0); o.bunker += (h.bunker||0); o.pen += (h.pen||0);
@@ -662,7 +707,35 @@ function holeStats(rounds){
     o.pOnRate = o.pOn/o.n*100; o.obRate = o.ob/o.n*100; o.bkRate = o.bunker/o.n*100;
     o.risk = (o.vsPar >= 1.5 || o.obRate >= 5) ? "crit" : (o.vsPar >= 1.0 || o.bkRate >= 10) ? "warn" : "ok";
     return o;
-  }).sort(function(a,b){ return a.hole - b.hole; });
+  }).sort(function(a,b){ return (a.ord - b.ord) || (a.hole - b.hole); });
+}
+/* 9ホール（東・中・西）ごとのまとめ */
+function nineStats(rounds){
+  var m = {}, ord = {}, k = 0;
+  rounds.forEach(function(r){
+    if(!r.nines || !r.nines.length) return;
+    r.holes.forEach(function(h){
+      if(!h.score || !h.nine) return;
+      if(ord[h.nine] === undefined) ord[h.nine] = k++;
+      var o = m[h.nine] || (m[h.nine] = {id:h.nine, name:h.nineName||h.nine, rounds:{}, n:0, par:0,
+              score:0, putts:0, fwA:0, fwH:0, pOn:0, ob:0, pen:0, bunker:0});
+      o.rounds[r.id] = 1;
+      o.n++; o.par += h.par; o.score += h.score; o.putts += (h.putts||0);
+      o.fwA += fwAttempt(h); o.fwH += fwHit(h); o.pOn += parOn(h);
+      o.ob += (h.ob||0); o.pen += (h.pen||0); o.bunker += (h.bunker||0);
+    });
+  });
+  return Object.keys(m).map(function(key){
+    var o = m[key];
+    o.plays = Object.keys(o.rounds).length;
+    o.avg9 = o.score / (o.n/9);            /* 9ホールあたりの平均打数 */
+    o.vsPar9 = o.avg9 - (o.par/(o.n/9));
+    o.putts9 = o.putts / (o.n/9);
+    o.fwRate = o.fwA ? o.fwH/o.fwA*100 : null;
+    o.pOnRate = o.pOn/o.n*100;
+    o.ob9 = o.ob / (o.n/9);
+    return o;
+  }).sort(function(a,b){ return ord[a.id]-ord[b.id]; });
 }
 function scoreMix(rounds){
   var m = {b:0, p:0, bo:0, d:0, t:0}, n = 0;
@@ -713,19 +786,34 @@ function currentRound(){
 }
 function newRound(courseId, date, opts){
   var c = state.courses.filter(function(x){ return x.id === courseId; })[0] || state.courses[0];
-  var pars = [], yards = [];
-  for(var loop=0; loop<(c.loop||1); loop++){
-    c.pars.forEach(function(p, i){ pars.push(p); yards.push((c.yards&&c.yards[i])||0); });
+  var pars = [], yards = [], marks = [], useNines = null;
+  if(hasNines(c)){
+    useNines = ((opts && opts.nines) || []).filter(function(id){ return !!nineOf(c, id); });
+    if(useNines.length < 2) useNines = c.nines.slice(0,2).map(function(x){ return x.id; });
+    useNines.forEach(function(id){
+      var nn = nineOf(c, id);
+      nn.pars.forEach(function(p, i){
+        pars.push(p); yards.push((nn.yards && nn.yards[i]) || 0);
+        marks.push({nine:nn.id, nineName:nn.name, nh:i+1});
+      });
+    });
+  }else{
+    for(var loop=0; loop<(c.loop||1); loop++){
+      c.pars.forEach(function(p, i){ pars.push(p); yards.push((c.yards&&c.yards[i])||0); marks.push(null); });
+    }
   }
   var r = {
     id: uid("r"), date: (date && /^\d{4}-\d{2}-\d{2}$/.test(date)) ? date : today(),
     courseId: c.id, courseName: c.name, weather: "", memo: "",
+    nines: useNines,
     players: (opts && opts.players) ? opts.players.slice(0,3) : ["","",""],
     olympic: !!(opts && opts.olympic),
     finished: false,
     holes: pars.map(function(p, i){
-      return {par:p, yard:yards[i], score:0, putts:0, tee:"-", teeClub:"", clubs:[],
-              ob:0, bunker:0, pen:0, note:"", others:[0,0,0], oly:[0,0,0,0]};
+      var h = {par:p, yard:yards[i], score:0, putts:0, tee:"-", teeClub:"", clubs:[],
+               ob:0, bunker:0, pen:0, note:"", others:[0,0,0], oly:[0,0,0,0]};
+      if(marks[i]){ h.nine = marks[i].nine; h.nineName = marks[i].nineName; h.nh = marks[i].nh; }
+      return h;
     }),
     updatedAt: Date.now()
   };
@@ -734,6 +822,28 @@ function newRound(courseId, date, opts){
   state.ui.roundId = r.id; state.ui.hole = 0;
   markDirty();
   return r;
+}
+/* 27ホールコース：回る9ホールの組み合わせを選ぶ */
+function ninePickHtml(courseId){
+  var c = state.courses.filter(function(x){ return x.id === courseId; })[0];
+  if(!hasNines(c)) return '';
+  var sel = (state.ui.newNines || []).filter(function(id){ return !!nineOf(c, id); });
+  if(!sel.length) sel = c.nines.slice(0,2).map(function(x){ return x.id; });
+  state.ui.newNines = sel;
+  var par = sel.reduce(function(a, id){
+    var nn = nineOf(c, id);
+    return a + nn.pars.reduce(function(x,y){return x+y;},0);
+  }, 0);
+  return '<div><label class="f">回る9ホール（タップした順に回ります）</label><div class="chips">'
+    + c.nines.map(function(nn){
+        var k = sel.indexOf(nn.id);
+        return '<button data-act="pick-nine" data-v="'+esc(nn.id)+'" aria-pressed="'+(k>=0)+'">'
+          + esc(nn.name) + (k>=0 ? '<span class="ordno">'+(k+1)+'</span>' : '') + '</button>';
+      }).join('')
+    + '</div><p class="hint" style="margin-top:6px">'
+    + (sel.length ? '選択：' + sel.map(function(id){ return esc(nineOf(c,id).name); }).join(' → ')
+        + '　全'+(sel.length*9)+'ホール／Par '+par : '2つ以上えらんでください')
+    + '</p></div>';
 }
 function viewRound(){
   var r = currentRound();
@@ -747,10 +857,16 @@ function viewRound(){
           if(!state.courses.some(function(c){ return c.id === def; })) def = state.courses[0] ? state.courses[0].id : "";
           return state.courses.map(function(c){
             return '<option value="'+c.id+'"'+(c.id===def?" selected":"")+'>'+esc(c.name)
-              +(c.loop>1?"（"+c.pars.length+"H×"+c.loop+"周）":"（"+c.pars.length+"H）")+'</option>';
+              + (hasNines(c) ? "（"+c.nines.map(function(x){return x.name;}).join("・")+" 各9H）"
+                 : c.loop>1?"（"+c.pars.length+"H×"+c.loop+"周）":"（"+c.pars.length+"H）")+'</option>';
           }).join("");
         })()
       + '</select></div>'
+      + '<div id="nine-pick">'+ninePickHtml((function(){
+          var d = (state.rounds[0] && state.rounds[0].courseId) || "sobu-north";
+          if(!state.courses.some(function(c){ return c.id === d; })) d = state.courses[0] ? state.courses[0].id : "";
+          return d;
+        })())+'</div>'
       + '<div><label class="f">同伴競技者（任意・最大3名）</label>'
       + '<div class="grid" style="gap:6px">'
       + [0,1,2].map(function(i){
@@ -768,7 +884,7 @@ function viewRound(){
         + state.rounds.slice(0,12).map(function(x){
             var t = roundTotals(x);
             return '<div class="row" style="justify-content:space-between;border-bottom:1px solid var(--grid);padding-bottom:8px">'
-              + '<span>'+esc(x.date)+'　'+esc(x.courseName)+'　<b>'+(t.holes?t.score:"–")+'</b>'+(t.complete?"":' <span class="hint">('+t.holes+'H)</span>')+'</span>'
+              + '<span>'+esc(x.date)+'　'+esc(x.courseName)+(x.nines&&x.nines.length?'（'+esc(nineNamesOf(x))+'）':'')+'　<b>'+(t.holes?t.score:"–")+'</b>'+(t.complete?"":' <span class="hint">('+t.holes+'H)</span>')+'</span>'
               + '<span class="row"><button class="btn sm" data-act="resume" data-id="'+x.id+'">開く</button>'
               + '<button class="btn sm danger" data-act="del-round" data-id="'+x.id+'">削除</button></span></div>';
           }).join("") + '</div></div>';
@@ -805,7 +921,7 @@ function totalsHtml(r){
 function tabsHtml(r, idx){
   return r.holes.map(function(h, i){
     return '<button data-act="hole-tab" data-i="'+i+'" aria-current="'+(i===idx)+'" class="'+(h.score?'done':'')+'">'
-      + '<b>'+(h.score||(i+1)+'H')+'</b><small>'+(h.score?(i+1)+'H':'PAR'+h.par)+'</small></button>';
+      + '<b>'+(h.score||hLabel(r,i)+'H')+'</b><small>'+(h.score?hLabel(r,i)+'H':'PAR'+h.par)+'</small></button>';
   }).join('');
 }
 function scoreLabel(h){
@@ -854,7 +970,7 @@ function olympicHtml(r, h){
 function holeCardHtml(r, idx){
   var h = r.holes[idx];
   var tees = (h.par===3?TEE_RESULTS_P3:TEE_RESULTS).filter(function(o){ return o.k!=='-'; });
-  var out = '<div class="holebar"><span class="hno">'+(idx+1)+'H</span>'
+  var out = '<div class="holebar"><span class="hno">'+hLabel(r,idx)+'H</span>'
     + '<span class="parbox">PAR '+h.par+'</span>'
     + (h.yard?'<span class="hint">'+h.yard+'y</span>':'')
     + '<span class="scorelabel" id="h-label">'+scoreLabel(h)+'</span></div>';
@@ -1369,7 +1485,7 @@ function viewGps(){
       + '<div class="holetabs" id="m-holes">'
       + r.holes.map(function(hh, i){
           return '<button data-act="m-hole" data-i="'+i+'" aria-current="'+(i===idx)+'" class="'+(hh.score?'done':'')+'">'
-            + '<b>'+(i+1)+'H</b><small>PAR'+hh.par+'</small></button>';
+            + '<b>'+hLabel(r,i)+'H</b><small>PAR'+hh.par+'</small></button>';
         }).join('') + '</div></div>';
     /* ② 何打目 */
     out += '<div><label class="f">何打目の計測ですか</label><div class="chips">'
@@ -1431,7 +1547,7 @@ function viewGps(){
 
   out += '<div class="row"><button class="btn sm ghost" data-act="manual-shot">GPSを使わず手入力する</button>'
     + (gpsFrom ? '<button class="btn sm ghost" data-act="gps-reset">計測をやり直す</button>' : '') + '</div>'
-    + (r ? '<p class="hint">記録先：'+esc(r.courseName)+' '+(idx+1)+'番ホール '+(state.ui.shotNo||1)+'打目</p>' : '')
+    + (r ? '<p class="hint">記録先：'+esc(r.courseName)+' '+hLabel(r,idx)+'番ホール '+(state.ui.shotNo||1)+'打目</p>' : '')
     + (function(){
         var mine = holeShots();
         if(!mine.length) return '';
@@ -1470,7 +1586,6 @@ function viewTotal(){
   if(!r) return '<div class="sec"><div class="empty">まだラウンドの記録がありません。<br>「スコア入力」タブから始めてください。</div></div>';
   var ps = activePlayers(r);
   var n = r.holes.length;
-  var half = Math.floor(n/2);
   var t = roundTotals(r);
 
   function pScore(p, i){ return p.i === 0 ? (r.holes[i].score||0) : (r.holes[i].others[p.i-1]||0); }
@@ -1482,22 +1597,24 @@ function viewTotal(){
     + (state.rounds.length > 1
         ? '<select id="total-round" style="width:auto;min-height:38px;margin-left:auto">'
           + state.rounds.filter(function(x){ return roundTotals(x).holes > 0; }).slice(0,20).map(function(x){
-              return '<option value="'+x.id+'"'+(x.id===r.id?' selected':'')+'>'+esc(x.date)+'　'+esc(x.courseName)+'</option>';
+              return '<option value="'+x.id+'"'+(x.id===r.id?' selected':'')+'>'+esc(x.date)+'　'+esc(x.courseName)+(x.nines&&x.nines.length?'（'+esc(nineNamesOf(x))+'）':'')+'</option>';
             }).join('') + '</select>'
         : '') + '</div>';
 
   out += '<div class="card"><div class="row" style="justify-content:space-between;margin-bottom:8px">'
-    + '<b>'+esc(r.courseName)+'</b><span class="hint">'+esc(r.date)+' '+weekdayJa(r.date)
+    + '<b>'+esc(r.courseName)+(r.nines&&r.nines.length?'<span class="hint">　'+esc(nineNamesOf(r))+'</span>':'')+'</b><span class="hint">'+esc(r.date)+' '+weekdayJa(r.date)
     + (r.finished ? '　<span class="pill on">終了</span>' : '　'+t.holes+'/'+n+'ホール入力') + '</span></div>';
 
   /* スコアカード */
+  var segs = segments(r);
+  function segPar(sg){ var v=0; for(var i=sg.from;i<sg.to;i++) v += r.holes[i].par; return v; }
   out += '<div class="scroll-x"><table class="card-tbl"><thead><tr><th>H</th>'
-    + r.holes.map(function(h, i){ return '<th class="c">'+(i+1)+'</th>'; }).join('')
-    + '<th class="c">OUT</th><th class="c">IN</th><th class="c">合計</th></tr>'
+    + r.holes.map(function(h, i){ return '<th class="c">'+hLabel(r,i)+'</th>'; }).join('')
+    + segs.map(function(sg){ return '<th class="c">'+esc(sg.name)+'</th>'; }).join('')
+    + '<th class="c">合計</th></tr>'
     + '<tr><th>PAR</th>'
     + r.holes.map(function(h){ return '<td class="c">'+h.par+'</td>'; }).join('')
-    + '<td class="c">'+r.holes.slice(0,half).reduce(function(a,h){return a+h.par;},0)+'</td>'
-    + '<td class="c">'+r.holes.slice(half).reduce(function(a,h){return a+h.par;},0)+'</td>'
+    + segs.map(function(sg){ return '<td class="c">'+segPar(sg)+'</td>'; }).join('')
     + '<td class="c"><b>'+r.holes.reduce(function(a,h){return a+h.par;},0)+'</b></td></tr></thead><tbody>';
   ps.forEach(function(p){
     var tot = pSum(p, 0, n);
@@ -1511,14 +1628,13 @@ function viewTotal(){
                   : d >= 2 ? 'color:var(--crit)' : '';
           return '<td class="c" style="'+col+'">'+v+'</td>';
         }).join('')
-      + '<td class="c">'+(pSum(p,0,half)||'–')+'</td>'
-      + '<td class="c">'+(pSum(p,half,n)||'–')+'</td>'
+      + segs.map(function(sg){ return '<td class="c">'+(pSum(p,sg.from,sg.to)||'–')+'</td>'; }).join('')
       + '<td class="c"><b>'+(tot||'–')+'</b></td></tr>';
   });
+  function segPutts(sg){ var v=0; for(var i=sg.from;i<sg.to;i++) v += (r.holes[i].score?(r.holes[i].putts||0):0); return v; }
   out += '<tr><td>パット<span class="hint">（自分）</span></td>'
     + r.holes.map(function(h){ return '<td class="c">'+(h.score?(h.putts||0):'–')+'</td>'; }).join('')
-    + '<td class="c">'+r.holes.slice(0,half).reduce(function(a,h){return a+(h.score?(h.putts||0):0);},0)+'</td>'
-    + '<td class="c">'+r.holes.slice(half).reduce(function(a,h){return a+(h.score?(h.putts||0):0);},0)+'</td>'
+    + segs.map(function(sg){ return '<td class="c">'+segPutts(sg)+'</td>'; }).join('')
     + '<td class="c"><b>'+t.putts+'</b></td></tr>';
   out += '</tbody></table></div>';
 
@@ -1536,7 +1652,7 @@ function viewTotal(){
     out += '<div class="sec"><div class="sec-h"><span class="eyebrow">OLYMPIC</span><h2>オリンピック</h2>'
       + '<span class="hint">総当たり（ポイント）</span></div><div class="card">';
     out += '<div class="scroll-x"><table class="card-tbl"><thead><tr><th>H</th>'
-      + r.holes.map(function(h, i){ return '<th class="c">'+(i+1)+'</th>'; }).join('')
+      + r.holes.map(function(h, i){ return '<th class="c">'+hLabel(r,i)+'</th>'; }).join('')
       + '<th class="c">合計</th></tr></thead><tbody>';
     ps.forEach(function(p, k){
       out += '<tr'+(p.i===0?' class="hi"':'')+'><td><b>'+esc(p.name)+'</b></td>'
@@ -1581,7 +1697,10 @@ function viewAnalysis(){
   var ids = Object.keys(courses).sort(function(a,b){ return courses[b]-courses[a]; });
   var sel = state.ui.analysisCourse || ids[0];
   var rounds = complete.filter(function(r){ return r.courseId === sel; });
-  var a = aggregate(rounds), hs = holeStats(rounds), mix = scoreMix(rounds), pg = parGroups(rounds);
+  var ns = nineStats(rounds);
+  var nineSel = state.ui.analysisNine;
+  if(nineSel && !ns.some(function(o){ return o.id === nineSel; })) nineSel = null;
+  var a = aggregate(rounds), hs = holeStats(rounds, nineSel), mix = scoreMix(rounds), pg = parGroups(rounds);
   var cname = (rounds[0]||{}).courseName || "";
 
   var out = '<div class="sec"><div class="sec-h"><span class="eyebrow">ANALYSIS</span><h2>'+esc(cname)+'</h2>'
@@ -1631,11 +1750,38 @@ function viewAnalysis(){
     + '<p class="hint" style="margin-top:8px">ワンオン率＝Par3でティーショットがグリーンに乗った割合。</p></div></div>';
 
   // ホール別
-  out += '<div class="sec"><div class="sec-h"><span class="eyebrow">BY HOLE</span><h2>ホール別の成績</h2></div><div class="card scroll-x"><table>'
+  // 9ホール（東・中・西）別
+  if(ns.length){
+    out += '<div class="sec"><div class="sec-h"><span class="eyebrow">BY NINE</span><h2>9ホール別の成績</h2>'
+      + '<span class="hint">9ホールあたりの平均</span></div><div class="card">'
+      + '<div class="chartwrap">' + barsV(ns.map(function(o, i){
+          return {label:o.name, v:o.avg9, vlabel:fmt(o.avg9,1), sub:(o.vsPar9>=0?"+":"")+fmt(o.vsPar9,1),
+                  color:["var(--s1)","var(--s2)","var(--s3)"][i%3],
+                  tip:o.name+"：9ホール平均 "+fmt(o.avg9,1)+"打（"+o.plays+"回）"};
+        }), {aria:"9ホール別の平均スコア"}) + '</div>'
+      + '<div class="scroll-x" style="margin-top:12px"><table><thead><tr><th>9ホール</th><th>回数</th><th>平均</th><th>vs Par</th><th>平均パット</th><th>FW率</th><th>パーオン率</th><th>OB</th></tr></thead><tbody>'
+      + ns.map(function(o){
+          return '<tr><td><b>'+esc(o.name)+'</b></td><td>'+o.plays+'</td><td><b>'+fmt(o.avg9,1)+'</b></td>'
+            + '<td>'+(o.vsPar9>=0?"+":"")+fmt(o.vsPar9,1)+'</td><td>'+fmt(o.putts9,1)+'</td>'
+            + '<td>'+(o.fwRate==null?"–":Math.round(o.fwRate)+"%")+'</td><td>'+Math.round(o.pOnRate)+'%</td>'
+            + '<td>'+fmt(o.ob9,1)+'</td></tr>';
+        }).join('')
+      + '</tbody></table></div>'
+      + '<p class="hint" style="margin-top:8px">同じ9ホールを複数回まわった分もまとめて集計しています。</p>'
+      + '</div></div>';
+  }
+
+  out += '<div class="sec"><div class="sec-h"><span class="eyebrow">BY HOLE</span><h2>ホール別の成績</h2>'
+    + (ns.length ? '<span class="hint">'+(nineSel ? esc((ns.filter(function(o){return o.id===nineSel;})[0]||{}).name)+'のみ' : '全ホール')+'</span>' : '')
+    + '</div>'
+    + (ns.length ? '<div class="chips" style="margin-bottom:10px"><button data-act="a-nine" data-v="" aria-pressed="'+(!nineSel)+'">すべて</button>'
+        + ns.map(function(o){ return '<button data-act="a-nine" data-v="'+esc(o.id)+'" aria-pressed="'+(nineSel===o.id)+'">'+esc(o.name)+'</button>'; }).join('')
+        + '</div>' : '')
+    + '<div class="card scroll-x"><table>'
     + '<thead><tr><th>H</th><th>Par</th><th>回数</th><th>平均</th><th>vs Par</th><th>FW率</th><th>ワンオン率</th><th>パーオン率</th><th>平均パット</th><th>OB率</th><th>バンカー率</th><th>危険度</th></tr></thead><tbody>'
     + hs.map(function(o){
         var badge = o.risk==="crit" ? '<span class="badge crit">● 危険</span>' : o.risk==="warn" ? '<span class="badge warn">▲ 注意</span>' : '<span class="badge ok">■ 安定</span>';
-        return '<tr><td><b>'+o.hole+'</b></td><td>'+o.par+'</td><td>'+o.n+'</td><td><b>'+fmt(o.avg,2)+'</b></td>'
+        return '<tr><td><b>'+esc(o.label||o.hole)+'</b></td><td>'+o.par+'</td><td>'+o.n+'</td><td><b>'+fmt(o.avg,2)+'</b></td>'
           + '<td>'+(o.vsPar>=0?"+":"")+fmt(o.vsPar,2)+'</td><td>'+(o.fwRate==null?"–":Math.round(o.fwRate)+"%")+'</td>'
           + '<td>'+(o.oneRate==null?"–":Math.round(o.oneRate)+"%")+'</td>'
           + '<td>'+Math.round(o.pOnRate)+'%</td><td>'+fmt(o.putts/o.n,2)+'</td><td>'+Math.round(o.obRate)+'%</td>'
@@ -1655,7 +1801,7 @@ function coachBlock(a, hs, mix, pg, rounds){
   out += '<div class="two">';
   out += '<div class="card"><h3 style="font-size:17px;margin-bottom:8px">強み トップ3</h3><ul class="coach">'
     + strong.slice(0,3).map(function(o){
-        return '<li><b>'+o.hole+'番（Par'+o.par+'）</b> 平均 '+fmt(o.avg,2)+'（'+(o.vsPar>=0?"+":"")+fmt(o.vsPar,2)+'）'
+        return '<li><b>'+esc(o.label||o.hole)+'番（Par'+o.par+'）</b> 平均 '+fmt(o.avg,2)+'（'+(o.vsPar>=0?"+":"")+fmt(o.vsPar,2)+'）'
           + (o.fwRate!=null && o.fwRate>=60 ? '／FW '+Math.round(o.fwRate)+'%' : '')
           + '<br><span class="hint">いつも通りのリズムで。ここは変えない。</span></li>';
       }).join("") + '</ul></div>';
@@ -1667,7 +1813,7 @@ function coachBlock(a, hs, mix, pg, rounds){
         else if(state.settings.goal === "100") advice = "パーを狙わない。刻んでボギー、最悪でもダボで上がる組み立てに。";
         else if(state.settings.goal === "90") advice = "ボギーオン＋2パットを確実に。3打目を得意な距離に残す。";
         else advice = "パーオンを狙える組み立てに。花道から攻め、寄せワンの位置に外す。";
-        return '<li><b>'+o.hole+'番（Par'+o.par+'）</b> 平均 '+fmt(o.avg,2)+'（'+(o.vsPar>=0?"+":"")+fmt(o.vsPar,2)+'）'
+        return '<li><b>'+esc(o.label||o.hole)+'番（Par'+o.par+'）</b> 平均 '+fmt(o.avg,2)+'（'+(o.vsPar>=0?"+":"")+fmt(o.vsPar,2)+'）'
           + '<br><span class="hint">'+advice+'</span></li>';
       }).join("") + '</ul></div></div>';
 
@@ -1813,8 +1959,18 @@ function viewData(){
     + state.courses.map(function(c){
         return '<div style="border-bottom:1px solid var(--grid);padding-bottom:10px">'
           + '<div class="row" style="justify-content:space-between"><b>'+esc(c.name)+(c.id==="sobu-north"?' <span class="pill on">既定</span>':'')+'</b>'
-          + '<span class="hint">'+c.pars.length+'ホール'+(c.loop>1?" × "+c.loop+"周":"")+'／Par '+c.pars.reduce(function(a,b){return a+b;},0)*(c.loop||1)+'</span></div>'
-          + '<div class="hint">Par: '+c.pars.join(" ・ ")+'</div></div>';
+          + '<span class="hint">'
+          + (hasNines(c)
+              ? (c.nines.length*9)+'ホール（'+c.nines.map(function(x){return esc(x.name);}).join("・")+'）／Par '
+                + c.nines.reduce(function(a,x){ return a + x.pars.reduce(function(p,q){return p+q;},0); },0)
+              : c.pars.length+'ホール'+(c.loop>1?" × "+c.loop+"周":"")+'／Par '+c.pars.reduce(function(a,b){return a+b;},0)*(c.loop||1))
+          + '</span></div>'
+          + (hasNines(c)
+              ? c.nines.map(function(x){
+                  return '<div class="hint">'+esc(x.name)+'　Par: '+x.pars.join(" ・ ")+'</div>';
+                }).join('')
+              : '<div class="hint">Par: '+c.pars.join(" ・ ")+'</div>')
+          + '</div>';
       }).join("")
     + '<div class="grid" style="gap:10px;border-top:1px solid var(--line);padding-top:14px">'
     + '<div><label class="f">コース名</label><input type="text" id="cname" placeholder="例：〇〇カントリークラブ 東コース"></div>'
@@ -1870,14 +2026,14 @@ function clubsOfHole(r, i){
   return h.teeClub || "";
 }
 function csvScores(){
-  var head = ["Round","Date","Course","Hole","Par","Score","Putts","FW_Attempt","FW_Hit","ParOn","BogeyOn","OB","Bunker","Penalty","OneOn","TeeClub","TeeResult","Clubs","Note"];
+  var head = ["Round","Date","Course","Nine","Hole","HoleLabel","Par","Score","Putts","FW_Attempt","FW_Hit","ParOn","BogeyOn","OB","Bunker","Penalty","OneOn","TeeClub","TeeResult","Clubs","Note"];
   var rows = [head];
   var sorted = state.rounds.slice().sort(function(a,b){ return a.date < b.date ? -1 : a.date > b.date ? 1 : 0; });
   sorted.forEach(function(r, ri){
     var rid = "R" + String(ri+1).padStart(2,"0");
     r.holes.forEach(function(h, i){
       if(!h.score) return;
-      rows.push([rid, r.date, r.courseName, i+1, h.par, h.score, h.putts||0, fwAttempt(h), fwHit(h),
+      rows.push([rid, r.date, r.courseName, h.nineName||"", (h.nh||i+1), hLabel(r,i), h.par, h.score, h.putts||0, fwAttempt(h), fwHit(h),
                  parOn(h), bogeyOn(h), h.ob||0, h.bunker||0, h.pen||0,
                  h.par===3 ? oneOn(h) : "", h.teeClub||"", h.tee||"",
                  clubsOfHole(r, i), h.note||""]);
@@ -1998,7 +2154,7 @@ document.getElementById("view").addEventListener("click", async function(e){
     });
     var olyOn = !!(document.getElementById("np-oly") || {}).checked;
     newRound(document.getElementById("new-course").value, document.getElementById("new-date").value,
-             {players:names, olympic:olyOn});
+             {players:names, olympic:olyOn, nines:(state.ui.newNines||[]).slice()});
     render(); return;
   }
   if(act === "finish-round"){
@@ -2246,6 +2402,20 @@ document.getElementById("view").addEventListener("click", async function(e){
     state.settings.goal = b.dataset.v; markDirty(); lockScroll = true; render();
     toast("目標を「"+GOALS[b.dataset.v].label+"」にしました"); return;
   }
+  if(act === "pick-nine"){
+    var cid = (document.getElementById("new-course") || {}).value;
+    var cc = state.courses.filter(function(x){ return x.id === cid; })[0];
+    if(!cc) return;
+    var arr = (state.ui.newNines || []).slice();
+    var k = arr.indexOf(b.dataset.v);
+    if(k >= 0) arr.splice(k, 1);
+    else if(arr.length < cc.nines.length) arr.push(b.dataset.v);
+    state.ui.newNines = arr;
+    var np2 = document.getElementById("nine-pick");
+    if(np2) np2.innerHTML = ninePickHtml(cid);
+    return;
+  }
+  if(act === "a-nine"){ state.ui.analysisNine = b.dataset.v || null; lockScroll = true; render(); return; }
   if(act === "preset-clubs"){
     var presets = {
       std: ["1W","3W","5W","U4","U5","6I","7I","8I","9I","PW","AW","SW","PT"],
@@ -2335,7 +2505,13 @@ document.getElementById("view").addEventListener("change", function(e){
     return;
   }
   if(e.target.id === "total-round"){ state.ui.totalRoundId = e.target.value; lockScroll = true; render(); return; }
-  if(e.target.id === "acourse"){ state.ui.analysisCourse = e.target.value; render(); return; }
+  if(e.target.id === "acourse"){ state.ui.analysisCourse = e.target.value; state.ui.analysisNine = null; render(); return; }
+  if(e.target.id === "new-course"){
+    state.ui.newNines = [];
+    var np = document.getElementById("nine-pick");
+    if(np) np.innerHTML = ninePickHtml(e.target.value);
+    return;
+  }
   if(e.target.id === "round-date" || (e.target.dataset && e.target.dataset.act === "round-date-row")){
     var v = e.target.value;
     if(!/^\d{4}-\d{2}-\d{2}$/.test(v)){ toast("日付を選び直してください"); return; }
