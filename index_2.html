@@ -120,7 +120,10 @@ tbody tr:hover{background:var(--surface-2)}
 
 /* ---- KPI ---- */
 .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}
-.kpi{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px 16px}
+.kpi{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px 16px;min-width:0}
+.kpis.k2{grid-template-columns:1fr 1fr;gap:8px}
+.kpis.k2 .kpi{padding:10px 12px}
+.kpis.k2 .kpi .v{font-size:26px}
 .kpi .k{font-size:11px;letter-spacing:.12em;color:var(--muted);font-weight:700}
 .kpi .v{font-family:var(--serif);font-size:34px;line-height:1.15;font-variant-numeric:tabular-nums}
 .kpi .v span{font-family:var(--sans);font-size:13px;color:var(--muted);font-weight:500;margin-left:3px}
@@ -284,6 +287,7 @@ ul.coach li{margin-bottom:6px}
     <button data-tab="data">データ</button>
   </nav>
 
+  <div id="store-warn" style="padding:0 16px"></div>
   <main id="view"></main>
 </div>
 <div id="toast"></div>
@@ -352,11 +356,75 @@ function uid(p){ return (p||"x") + Date.now().toString(36) + Math.random().toStr
 function clone(o){ return JSON.parse(JSON.stringify(o)); }
 
 /* ---- 保存・読み込み ---- */
+var storeErr = null, storeBytes = 0;
+var STORE_LIMIT = 5 * 1024 * 1024;   /* 端末の保存容量のめやす（約5MB） */
 function saveLocal(){
+  var txt = "";
   try{
     var d = {settings:state.settings, clubs:state.clubs, courses:state.courses, rounds:state.rounds, shots:state.shots, savedAt:Date.now()};
-    localStorage.setItem(STORE_KEY, JSON.stringify(d));
-  }catch(e){}
+    txt = JSON.stringify(d);
+    localStorage.setItem(STORE_KEY, txt);
+    storeBytes = txt.length * 2;     /* 文字数×2バイトで見積もる */
+    if(storeErr){ storeErr = null; paintStoreWarn(); }
+  }catch(e){
+    var quota = (e && (e.name === "QuotaExceededError" || e.name === "NS_ERROR_DOM_QUOTA_REACHED"
+                 || String(e.code) === "22" || String(e.code) === "1014"));
+    storeErr = quota ? "quota" : "other";
+    storeBytes = txt.length * 2;
+    paintStoreWarn();
+    if(quota) toast("保存できません。容量がいっぱいです");
+  }
+}
+/* 端末の保存容量のようす */
+function storeInfo(){
+  var b = storeBytes;
+  if(!b){
+    try{ var t = localStorage.getItem(STORE_KEY); b = t ? t.length * 2 : 0; }catch(e){ b = 0; }
+    storeBytes = b;
+  }
+  var per = perRoundBytes();
+  return {
+    bytes: b,
+    kb: Math.round(b/1024),
+    limitKb: Math.round(STORE_LIMIT/1024),
+    pct: Math.min(100, Math.round(b/STORE_LIMIT*1000)/10),
+    perRoundKb: Math.round(per/1024*10)/10,
+    left: Math.max(0, Math.floor((STORE_LIMIT - b) / per))
+  };
+}
+/* 1ラウンドあたりの実データ量。記録がなければ実測値（約10KB）を使う */
+function perRoundBytes(){
+  var n = state.rounds.filter(function(r){ return roundTotals(r).holes > 0; }).length;
+  if(n >= 2 && storeBytes > 0){
+    var per = (storeBytes - 3000) / n;
+    if(per > 2000) return per;
+  }
+  return 10 * 1024;
+}
+function storeWarnHtml(){
+  if(storeErr === "quota"){
+    return '<div class="note" style="border-color:var(--crit);background:#fdecea">'
+      + '<b style="color:var(--crit)">⚠ 端末の保存容量がいっぱいです。今の入力が保存されていません。</b>'
+      + '<div style="margin-top:6px">まず「データ」タブの<b>バックアップ(JSON)</b>を取ってから、'
+      + '古いラウンドを削除してください。削除するとまた保存できるようになります。</div></div>';
+  }
+  if(storeErr === "other"){
+    return '<div class="note" style="border-color:var(--warn)">'
+      + '<b>⚠ この端末に保存できませんでした。</b>'
+      + '<div style="margin-top:6px">ブラウザのプライベートモードでは保存できないことがあります。'
+      + '通常のタブで開くか、「データ」タブからバックアップを取ってください。</div></div>';
+  }
+  var si = storeInfo();
+  if(si.pct >= 80){
+    return '<div class="note" style="border-color:var(--warn)">'
+      + '<b>保存容量が残りわずかです（'+si.pct+'% 使用）。</b>'
+      + '<div style="margin-top:6px">バックアップを取ってから、古いラウンドの削除をおすすめします。</div></div>';
+  }
+  return '';
+}
+function paintStoreWarn(){
+  var el = document.getElementById("store-warn");
+  if(el) el.innerHTML = storeWarnHtml();
 }
 function readCloud(){
   try{
@@ -2017,6 +2085,26 @@ function viewData(){
         ? '<button class="btn ghost sm" data-act="restore-courses">最初のコースを戻す</button>' : '')
     + '</div></div></div></div>';
 
+  var si = storeInfo();
+  var nR = state.rounds.filter(function(r){ return roundTotals(r).holes > 0; }).length;
+  var barCol = si.pct >= 80 ? 'var(--crit)' : si.pct >= 60 ? 'var(--warn)' : 'var(--accent)';
+  out += '<div class="sec"><div class="sec-h"><span class="eyebrow">STORAGE</span><h2>使用容量</h2>'
+    + '<span class="hint">'+si.pct+'% 使用</span></div><div class="card grid">'
+    + '<div style="height:12px;border-radius:6px;background:var(--grid);overflow:hidden">'
+    + '<div style="height:100%;width:'+Math.max(1.5, si.pct)+'%;background:'+barCol+'"></div></div>'
+    + '<div class="kpis k2">'
+    + '<div class="kpi"><div class="k">使用中</div><div class="v">'+si.kb+'<span>KB</span></div></div>'
+    + '<div class="kpi"><div class="k">上限のめやす</div><div class="v">'+si.limitKb+'<span>KB</span></div></div>'
+    + '<div class="kpi"><div class="k">記録ずみ</div><div class="v">'+nR+'<span>ラウンド</span></div></div>'
+    + '<div class="kpi"><div class="k">あと入る目安</div><div class="v">'+(si.left>9999?'9999+':si.left)+'<span>ラウンド</span></div></div>'
+    + '</div>'
+    + '<p class="hint">1ラウンドあたり約 '+si.perRoundKb+' KB'
+    + (nR >= 2 ? '（あなたの実際の記録から計算）' : '（GPS計測を含む標準的な目安）')
+    + '。保存先はこの端末のブラウザの中で、上限はおよそ 5 MB です。'
+    + '年30ラウンドなら十数年ぶんは入りますが、機種変更やブラウザのデータ消去では消えるため、'
+    + '数ラウンドごとに上の<b>バックアップ(JSON)</b>を取っておいてください。</p>'
+    + '</div></div>';
+
   out += '<div class="sec"><div class="sec-h"><span class="eyebrow">RESTORE</span><h2>データの復元</h2></div><div class="card grid">'
     + '<div><label class="f">方法1：バックアップファイルから戻す</label>'
     + '<input type="file" id="importfile" accept=".json,application/json,text/plain" '
@@ -2153,6 +2241,7 @@ function render(){
     b.setAttribute("aria-current", b.dataset.tab === t ? "true" : "false");
   });
   paintCloudStatus();
+  paintStoreWarn();
   if(t === "gps"){ paintDiag(); startWarm(); }
   if(t === "round") setTimeout(scrollTabIntoView, 30);
   if(!lockScroll) window.scrollTo({top:0, behavior:"instant"});
