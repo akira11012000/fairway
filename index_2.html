@@ -329,7 +329,7 @@ var SEED_COURSES = [
 
 /* ============================ 状態 ============================ */
 var state = {
-  settings: {stride: 75, gpsBlocked: false, goal: "90", olyRate: 100},
+  settings: {stride: 75, gpsBlocked: false, goal: "90"},
   clubs: DEFAULT_CLUBS.slice(),
   courses: SEED_COURSES.map(function(c){return JSON.parse(JSON.stringify(c));}),
   rounds: [],
@@ -384,7 +384,7 @@ function bootState(){
   state.courses = courses;
   var st = (local && local.settings) || base.settings || {};
   state.settings = {stride: st.stride || 75, gpsBlocked: !!st.gpsBlocked,
-                    goal: st.goal || "90", olyRate: st.olyRate || 100};
+                    goal: st.goal || "90"};
   gpsMode = "live";
   state.clubs = (local && local.clubs) || (base.clubs) || DEFAULT_CLUBS.slice();
   // 旧初期セットのままなら、新しいクラブセットに置き換える
@@ -690,7 +690,6 @@ function normalizeRound(r){
   if(!r) return r;
   if(!r.players) r.players = ["","",""];
   if(r.olympic === undefined) r.olympic = false;
-  if(!r.olyRate) r.olyRate = state.settings.olyRate || 100;
   if(r.finished === undefined) r.finished = false;
   r.holes.forEach(function(h){
     if(!h.others) h.others = [0,0,0];
@@ -723,7 +722,6 @@ function newRound(courseId, date, opts){
     courseId: c.id, courseName: c.name, weather: "", memo: "",
     players: (opts && opts.players) ? opts.players.slice(0,3) : ["","",""],
     olympic: !!(opts && opts.olympic),
-    olyRate: (opts && opts.olyRate) || state.settings.olyRate || 100,
     finished: false,
     holes: pars.map(function(p, i){
       return {par:p, yard:yards[i], score:0, putts:0, tee:"-", teeClub:"", clubs:[],
@@ -761,8 +759,8 @@ function viewRound(){
       + '<p class="hint" style="margin-top:6px">名前を入れた方の分だけ、各ホールでスコアを入力できます。</p></div>'
       + '<div><label class="f">オリンピック</label>'
       + '<div class="row"><label class="row" style="gap:6px;cursor:pointer">'
-      + '<input type="checkbox" id="np-oly" style="width:22px;height:22px;min-height:0">オリンピックを行う</label>'
-      + '<span class="row" style="gap:4px">1点＝<input type="number" id="np-rate" value="'+(state.settings.olyRate||100)+'" style="width:90px;min-height:40px">円</span></div></div>'
+      + '<input type="checkbox" id="np-oly" style="width:22px;height:22px;min-height:0">オリンピックを行う</label></div>'
+      + '<p class="hint" style="margin-top:6px">各ホールで点数を入力し、合計と総当たりの収支（ポイント）を表示します。</p></div>'
       + '<div class="row"><button class="btn primary" data-act="create-round">このコースで開始</button>'
       + '<button class="btn ghost" data-act="go-data">コースを追加・編集</button></div></div>';
     if(state.rounds.length){
@@ -916,31 +914,15 @@ function olySettle(r){
   var pts = ps.map(function(p){
     return r.holes.reduce(function(a,h){ return a + (h.oly[p.i]||0); }, 0);
   });
-  var n = ps.length, rate = r.olyRate || 100;
-  /* 総当たり方式：各人と他全員との点差×レートの合計 */
+  /* 総当たり方式：各人と他全員との点差の合計（ポイントのみ） */
   var net = pts.map(function(v){
     var sum = 0;
     pts.forEach(function(w){ sum += (v - w); });
-    return sum * rate;
+    return sum;
   });
-  /* 支払いの組み合わせ（少ない回数で精算） */
-  var cred = [], debt = [];
-  ps.forEach(function(p, i){
-    if(net[i] > 0) cred.push({name:p.name, v:net[i]});
-    else if(net[i] < 0) debt.push({name:p.name, v:-net[i]});
-  });
-  cred.sort(function(a,b){ return b.v-a.v; }); debt.sort(function(a,b){ return b.v-a.v; });
-  var pay = [], ci = 0, di = 0;
-  while(ci < cred.length && di < debt.length){
-    var m = Math.min(cred[ci].v, debt[di].v);
-    if(m > 0) pay.push({from:debt[di].name, to:cred[ci].name, v:m});
-    cred[ci].v -= m; debt[di].v -= m;
-    if(cred[ci].v <= 0) ci++;
-    if(debt[di].v <= 0) di++;
-  }
-  return {players:ps, pts:pts, net:net, pay:pay, rate:rate};
+  return {players:ps, pts:pts, net:net};
 }
-function yen(v){ return (v<0?"−":"") + "¥" + Math.abs(Math.round(v)).toLocaleString("ja-JP"); }
+function pt(v){ return (v>0?"+":v<0?"−":"") + Math.abs(Math.round(v)) + "点"; }
 function finishHtml(r){
   var t = roundTotals(r);
   var ps = activePlayers(r);
@@ -948,26 +930,17 @@ function finishHtml(r){
   var out = '<div class="card blk">';
   out += '<h3 style="margin-top:0;font-size:17px">' + (r.finished ? 'ラウンド終了' : '18ホール入力完了') + '</h3>';
   out += '<div class="scroll-x"><table><thead><tr><th>プレーヤー</th><th>合計</th>'
-    + (r.olympic ? '<th>オリンピック</th><th>収支</th>' : '') + '</tr></thead><tbody>';
+    + (r.olympic ? '<th>オリンピック</th><th>収支（点）</th>' : '') + '</tr></thead><tbody>';
   var st = r.olympic ? olySettle(r) : null;
   ps.forEach(function(p, i){
     var total = p.i === 0 ? t.score
       : r.holes.reduce(function(a,h){ return a + (h.others[p.i-1]||0); }, 0);
     out += '<tr><td><b>'+esc(p.name)+'</b></td><td><b>'+(total||'–')+'</b>'
       + (p.i===0 ? ' <span class="hint">('+(t.vsPar>=0?'+':'')+t.vsPar+')</span>' : '') + '</td>'
-      + (st ? '<td>'+st.pts[i]+'点</td><td style="color:'+(st.net[i]>0?'var(--good)':st.net[i]<0?'var(--crit)':'var(--muted)')+'"><b>'+yen(st.net[i])+'</b></td>' : '')
+      + (st ? '<td>'+st.pts[i]+'点</td><td style="color:'+(st.net[i]>0?'var(--good)':st.net[i]<0?'var(--crit)':'var(--muted)')+'"><b>'+pt(st.net[i])+'</b></td>' : '')
       + '</tr>';
   });
   out += '</tbody></table></div>';
-  if(st){
-    out += '<div class="blk"><label class="f">精算（1点＝'+st.rate+'円・総当たり）</label>'
-      + (st.pay.length
-          ? st.pay.map(function(x){
-              return '<div class="shotrow"><span><b>'+esc(x.from)+'</b> → '+esc(x.to)+'</span><b>'+yen(x.v)+'</b></div>';
-            }).join('')
-          : '<p class="hint">精算はありません（全員同点）。</p>')
-      + '</div>';
-  }
   out += '<p class="hint" style="margin-top:8px">自分のスコア '+t.score+'打／パット '+t.putts
     + '／FWキープ '+(t.fwA?Math.round(t.fwH/t.fwA*100)+'%':'–')
     + '／パーオン '+(t.holes?Math.round(t.pOn/t.holes*100):0)+'%</p>';
@@ -1561,7 +1534,7 @@ function viewTotal(){
   if(r.olympic){
     var st = olySettle(r);
     out += '<div class="sec"><div class="sec-h"><span class="eyebrow">OLYMPIC</span><h2>オリンピック</h2>'
-      + '<span class="hint">1点＝'+st.rate+'円・総当たり</span></div><div class="card">';
+      + '<span class="hint">総当たり（ポイント）</span></div><div class="card">';
     out += '<div class="scroll-x"><table class="card-tbl"><thead><tr><th>H</th>'
       + r.holes.map(function(h, i){ return '<th class="c">'+(i+1)+'</th>'; }).join('')
       + '<th class="c">合計</th></tr></thead><tbody>';
@@ -1575,22 +1548,16 @@ function viewTotal(){
     });
     out += '</tbody></table></div>';
 
-    out += '<div class="blk"><label class="f">収支</label><div class="scroll-x"><table>'
-      + '<thead><tr><th>プレーヤー</th><th class="n">合計点</th><th class="n">収支</th></tr></thead><tbody>'
+    out += '<div class="blk"><label class="f">合計点と収支</label><div class="scroll-x"><table>'
+      + '<thead><tr><th>プレーヤー</th><th class="n">合計点</th><th class="n">収支（点）</th></tr></thead><tbody>'
       + ps.map(function(p, k){
           var v = st.net[k];
           return '<tr><td><b>'+esc(p.name)+'</b></td><td class="n">'+st.pts[k]+'点</td>'
             + '<td class="n" style="color:'+(v>0?'var(--good)':v<0?'var(--crit)':'var(--muted)')+'"><b>'
-            + (v>0?'受取 ':v<0?'支払 ':'')+yen(v)+'</b></td></tr>';
+            + pt(v)+'</b></td></tr>';
         }).join('')
-      + '</tbody></table></div></div>';
-
-    out += '<div class="blk"><label class="f">精算のしかた</label>'
-      + (st.pay.length
-          ? st.pay.map(function(x){
-              return '<div class="shotrow"><span><b>'+esc(x.from)+'</b> さんが <b>'+esc(x.to)+'</b> さんへ</span><b>'+yen(x.v)+'</b></div>';
-            }).join('')
-          : '<p class="hint">全員同点のため精算はありません。</p>')
+      + '</tbody></table></div>'
+      + '<p class="hint">収支は総当たり（各プレーヤーとの点差の合計）です。全員の合計は必ず 0 になります。</p>'
       + '</div></div></div>';
   }
 
@@ -1807,12 +1774,6 @@ function viewData(){
       }).join('')
     + '</tbody></table></div>'
     + '<p class="hint">選んだ目標に合わせて、分析画面の目標値とコーチングの内容が変わります。</p></div></div>';
-
-  out += '<div class="sec"><div class="sec-h"><span class="eyebrow">OLYMPIC</span><h2>オリンピック</h2></div><div class="card grid">'
-    + '<div class="row"><span>1点＝</span><input type="number" id="olyrate" value="'+(state.settings.olyRate||100)+'" style="width:110px">'
-    + '<span>円</span><button class="btn sm" data-act="save-rate">保存</button></div>'
-    + '<p class="hint">精算は総当たり方式（各プレーヤーと1対1で点差×レートをやり取り）で計算します。'
-    + 'レートはラウンド開始時にも設定できます。</p></div></div>';
 
   out += '<div class="sec"><div class="sec-h"><span class="eyebrow">CLUBS</span><h2>クラブセット</h2></div><div class="card grid" style="gap:8px">'
     + state.clubs.map(function(c, i){
@@ -2036,10 +1997,8 @@ document.getElementById("view").addEventListener("click", async function(e){
       var el = document.getElementById("np"+i); return el ? el.value.trim() : "";
     });
     var olyOn = !!(document.getElementById("np-oly") || {}).checked;
-    var rate = Number((document.getElementById("np-rate") || {}).value) || 100;
-    state.settings.olyRate = rate;
     newRound(document.getElementById("new-course").value, document.getElementById("new-date").value,
-             {players:names, olympic:olyOn, olyRate:rate});
+             {players:names, olympic:olyOn});
     render(); return;
   }
   if(act === "finish-round"){
@@ -2286,11 +2245,6 @@ document.getElementById("view").addEventListener("click", async function(e){
   if(act === "set-goal"){
     state.settings.goal = b.dataset.v; markDirty(); lockScroll = true; render();
     toast("目標を「"+GOALS[b.dataset.v].label+"」にしました"); return;
-  }
-  if(act === "save-rate"){
-    var rv = Number((document.getElementById("olyrate")||{}).value) || 100;
-    state.settings.olyRate = rv; markDirty(); lockScroll = true; render();
-    toast("1点＝"+rv+"円 に設定しました"); return;
   }
   if(act === "preset-clubs"){
     var presets = {
