@@ -322,12 +322,16 @@ function goal(){ return GOALS[state.settings.goal] || GOALS["90"]; }
 var STORE_KEY = "fairway-notebook-v1";
 
 var SEED_COURSES = [
-  {id:"sobu-north", name:"総武カントリー北コース", loop:2, pars:[4,4,4,3,5,4,3,4,4], yards:[0,0,0,0,0,0,0,0,0]},
+  {id:"sobu-north", name:"総武カントリー北コース", loop:2, pars:[4,4,4,3,5,4,3,4,4],
+   yards:[303,367,339,188,552,394,144,384,328]},
   {id:"sobu-sobu", name:"総武カントリー総武コース", nines:[
     {id:"e", name:"東", pars:[5,4,3,4,4,3,4,5,4], yards:[486,347,167,371,374,163,421,505,368]},
     {id:"m", name:"中", pars:[5,4,4,3,4,4,3,5,4], yards:[465,367,390,171,388,351,154,508,350]},
     {id:"w", name:"西", pars:[5,4,4,3,4,4,3,4,5], yards:[482,340,411,152,316,381,153,371,496]}
   ]},
+  {id:"sobu-inba", name:"総武カントリー印旛コース", loop:1,
+   pars:[5,4,4,3,5,3,4,4,4,5,4,4,5,3,4,4,3,4],
+   yards:[473,350,328,140,480,160,383,409,318,478,355,390,474,166,375,312,131,399]},
   {id:"std18", name:"標準18ホール", loop:1,
    pars:[4,4,3,5,4,4,3,4,5,4,4,3,5,4,4,3,4,5],
    yards:[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]}
@@ -382,7 +386,7 @@ function bootState(){
   var courses  = mergeById(base.courses, local && local.courses);
   var seedIds = {}; SEED_COURSES.forEach(function(c){seedIds[c.id]=1;});
   SEED_COURSES.forEach(function(c){ if(!courses.some(function(x){return x.id===c.id;})) courses.push(clone(c)); });
-  var pri = {"sobu-north":0, "sobu-sobu":1};
+  var pri = {"sobu-north":0, "sobu-sobu":1, "sobu-inba":2};
   courses.sort(function(a, b){
     var pa = pri[a.id]===undefined?9:pri[a.id], pb = pri[b.id]===undefined?9:pri[b.id];
     return pa - pb;
@@ -396,7 +400,26 @@ function bootState(){
   // 旧初期セットのままなら、新しいクラブセットに置き換える
   if(state.clubs.join(",") === OLD_DEFAULT_CLUBS.join(",")) state.clubs = DEFAULT_CLUBS.slice();
   if(state.clubs.join(",") === PREV_CLUBS_V2.join(",")) state.clubs = DEFAULT_CLUBS.slice();
+  state.rounds.forEach(fillYards);
   sortRounds();
+}
+/* コースにヤード数が後から登録された場合、記録済みラウンドの空欄だけ埋める */
+function fillYards(r){
+  if(!r || !r.holes) return;
+  var c = null;
+  for(var i=0;i<state.courses.length;i++) if(state.courses[i].id === r.courseId) c = state.courses[i];
+  if(!c) return;
+  r.holes.forEach(function(h, i){
+    if(h.yard) return;
+    var y = 0;
+    if(hasNines(c) && h.nine){
+      var nn = nineOf(c, h.nine);
+      if(nn && nn.yards) y = nn.yards[(h.nh||1)-1] || 0;
+    }else if(c.yards){
+      y = c.yards[i % c.yards.length] || 0;
+    }
+    if(y) h.yard = y;
+  });
 }
 
 /* ============================ 計算ロジック ============================ */
