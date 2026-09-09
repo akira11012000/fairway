@@ -163,6 +163,8 @@ tbody tr:hover{background:var(--surface-2)}
 .gpsbig{width:100%;min-height:96px;border-radius:16px;font-family:var(--serif);font-size:24px;font-weight:700;border:1px solid var(--accent);background:var(--accent);color:var(--on-accent);cursor:pointer}
 .gpsbig[data-armed="1"]{background:var(--s2);border-color:var(--s2);color:#fff}
 .gpsbig:disabled{opacity:.55;cursor:progress}
+.gpsbig{transition:transform .06s ease, filter .06s ease;-webkit-tap-highlight-color:transparent}
+.gpsbig:active,.gpsbig.press{transform:scale(.975);filter:brightness(.9)}
 .readout{font-family:var(--serif);font-size:56px;line-height:1;font-variant-numeric:tabular-nums}
 .readout span{font-family:var(--sans);font-size:16px;color:var(--muted);margin-left:6px}
 .readout b{font-weight:inherit;color:var(--ink)}
@@ -243,7 +245,7 @@ ul.coach li{margin-bottom:6px}
 .teerow button{min-height:50px;border-radius:12px;border:1px solid var(--line);background:var(--surface);font-size:15px;cursor:pointer;padding:0 2px;min-width:0}
 .teerow button{white-space:nowrap}
 .teerow.t5 button{font-size:11.5px;letter-spacing:-.02em}
-.teerow button.main{border-color:var(--accent);border-width:2px;font-weight:700}
+.teerow button.main{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent);font-weight:700}
 .teerow button[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--on-accent);font-weight:700}
 .counters{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:4px}
 .counter{border:1px solid var(--line);border-radius:10px;padding:4px 3px 5px;text-align:center;min-width:0;background:var(--surface)}
@@ -357,7 +359,7 @@ var SEED_COURSES = [
 
 /* ============================ 状態 ============================ */
 var state = {
-  settings: {stride: 75, gpsBlocked: false, goal: "90", hiddenCourses: []},
+  settings: {stride: 75, gpsBlocked: false, goal: "90", hiddenCourses: [], gpsWarm: true},
   clubs: DEFAULT_CLUBS.slice(),
   courses: SEED_COURSES.map(function(c){return JSON.parse(JSON.stringify(c));}),
   rounds: [],
@@ -482,7 +484,8 @@ function bootState(){
   state.courses = courses;
   var st = (local && local.settings) || base.settings || {};
   state.settings = {stride: st.stride || 75, gpsBlocked: !!st.gpsBlocked,
-                    goal: st.goal || "90", hiddenCourses: (st.hiddenCourses || []).slice()};
+                    goal: st.goal || "90", hiddenCourses: (st.hiddenCourses || []).slice(),
+                    gpsWarm: st.gpsWarm !== false};
   gpsMode = "live";
   state.clubs = (local && local.clubs) || (base.clubs) || DEFAULT_CLUBS.slice();
   // 旧初期セットのままなら、新しいクラブセットに置き換える
@@ -1116,7 +1119,7 @@ function holeCardHtml(r, idx){
   out += '<div class="blk"><label class="f">ティーショットのクラブ</label>'
     + clubGridHtml('tee-club', h.teeClub) + '</div>';
   out += '<div class="blk"><label class="f">ティーショットの方向</label>'
-    + '<div class="teerow'+(tees.length>=5?' t5':'')+'" style="grid-template-columns:repeat('+tees.length+',1fr)">'
+    + '<div class="teerow'+(tees.length>=5?' t5':'')+'" style="grid-template-columns:1.35fr repeat('+(tees.length-1)+',1fr)">'
     + tees.map(function(o, i){
         return '<button'+(i===0?' class="main"':'')+' data-act="tee-res" data-v="'+o.k+'" aria-pressed="'+(h.tee===o.k)+'">'
           + esc(o.sn||o.n)+'</button>';
@@ -1225,7 +1228,40 @@ function refreshGps(){
 /* ============================ 画面：GPS飛距離計測 ============================ */
 var gpsFrom = null, gpsBusy = false, lastMeasure = null;
 var gpsMode = "live"; // "live" = 歩いて計測 / "tap" = 2点タップ
-var live = {watchId:null, from:null, cur:null, dist:0, best:null, err:null};
+var live = {watchId:null, from:null, cur:null, dist:0, best:null, err:null,
+            startedAt:0, resumedAt:0, arm:false, tick:null};
+var LIVE_KEY = "fairway-notebook-live";
+/* 計測中の開始地点を端末に残す。画面を消しても・アプリが落ちても続きから確定できる */
+function saveLive(){
+  try{
+    if(!live.from){ localStorage.removeItem(LIVE_KEY); return; }
+    localStorage.setItem(LIVE_KEY, JSON.stringify({
+      from: live.from, startedAt: live.startedAt,
+      club: state.ui.gpsClub, roundId: state.ui.roundId,
+      hole: state.ui.hole, shotNo: state.ui.shotNo || 1
+    }));
+  }catch(e){}
+}
+function clearLive(){ try{ localStorage.removeItem(LIVE_KEY); }catch(e){} }
+function restoreLive(){
+  try{
+    var t = localStorage.getItem(LIVE_KEY);
+    if(!t) return;
+    var d = JSON.parse(t);
+    if(!d || !d.from) return;
+    if(Date.now() - (d.startedAt || 0) > 3*60*60*1000){ clearLive(); return; }  /* 3時間で失効 */
+    live.from = d.from; live.startedAt = d.startedAt || Date.now();
+    live.cur = null; live.dist = 0; live.arm = false;
+    if(d.club) state.ui.gpsClub = d.club;
+    if(d.roundId) state.ui.roundId = d.roundId;
+    if(typeof d.hole === "number") state.ui.hole = d.hole;
+    if(d.shotNo) state.ui.shotNo = d.shotNo;
+  }catch(e){}
+}
+/* 直近の測位が「今のもの」かどうか（画面を消していた間の古い位置を使わない） */
+function liveFresh(){
+  return !!(live.cur && live.cur.ts >= (live.resumedAt || 0) - 1500 && (Date.now() - live.cur.ts) < 12000);
+}
 var chainFrom = null; // 前のショットの着地点（次のショットの開始地点として引き継ぐ）
 var warm = {watchId:null, fix:null}; // 計測タブを開いている間、GPSを温めておく
 function haversine(a, b){
@@ -1387,9 +1423,9 @@ function startWarm(){
   if(warm.watchId != null || !navigator.geolocation) return;
   try{
     warm.watchId = navigator.geolocation.watchPosition(function(p){
-      warm.fix = {lat:p.coords.latitude, lon:p.coords.longitude, acc:p.coords.accuracy, ts:Date.now()};
+      warm.fix = fixOf(p);
       paintWarmState();
-    }, function(){}, {enableHighAccuracy:true, maximumAge:2000, timeout:30000});
+    }, function(){}, {enableHighAccuracy:true, maximumAge:1000, timeout:60000});
   }catch(e){}
 }
 function paintWarmState(){
@@ -1426,11 +1462,19 @@ function paintLive(){
            : '<div style="margin-top:6px;padding:8px 10px;border:1px solid '+accColor(a)+';border-radius:10px;'
              + 'color:'+accColor(a)+';font-weight:700;text-align:left">'+accNote(a)+'</div>');
     }else{
-      var sec = Math.round((Date.now() - (live.startedAt||Date.now()))/1000);
-      st.innerHTML = '<span style="color:var(--s2)">測位中… '+sec+'秒</span>'
+      var base = live.resumedAt || live.startedAt || Date.now();
+      var sec = Math.round((Date.now() - base)/1000);
+      st.innerHTML = '<span style="color:var(--s2)">'
+        + (live.arm ? 'いまの位置を測っています… ' : '測位中… ') + sec + '秒</span>'
+        + (live.arm ? '<div style="margin-top:4px;font-size:13px">測位できしだい、自動で確定します。</div>' : '')
         + (sec >= 10 ? '<div style="margin-top:6px;padding:8px 10px;border:1px solid var(--serious);border-radius:10px;'
              + 'color:var(--ink);text-align:left">まだ衛星を捕まえられていません。'+accHelp()+'</div>' : '');
     }
+  }
+  var big = document.querySelector('.gpsbig[data-act="live-fix"]');
+  if(big) big.textContent = live.arm ? '測位中… 自動で確定します' : '② ボールの位置で確定する';
+  if(live.arm && !liveFresh() && Date.now() - (live.lastAsk||0) > 1200){
+    live.lastAsk = Date.now(); requestFreshFix();
   }
   var yd2 = document.getElementById("m-yd");
   if(yd2) yd2.textContent = ready ? yds : "–";
@@ -1438,46 +1482,105 @@ function paintLive(){
 async function startLive(){
   /* 待たずにすぐ計測状態へ入る。開始地点は最初の測位で決め、
      動き出す前（8秒以内・15m以内）はより精度の良い測位で置き換える。 */
-  live.dist = 0; live.cur = null; live.err = null;
-  live.fixing = true; live.startedAt = Date.now();
-  live.from = (warm.fix && Date.now() - warm.fix.ts < 15000) ? warm.fix : null;
-  if(live.from) live.cur = live.from;
+  live.dist = 0; live.cur = null; live.err = null; live.arm = false;
+  live.fixing = true; live.startedAt = Date.now(); live.resumedAt = Date.now();
+  live.from = (warm.fix && Date.now() - warm.fix.ts < 30000) ? warm.fix : null;
+  if(live.from){ live.cur = live.from; saveLive(); }
+  ensureLiveWatch();
+  patchGps();   /* すぐに②の画面へ切り替える（全画面は作り直さない） */
+}
+/* 計測用の測位を（必要なら）開始する。画面を消して戻ったときもこれで復帰する */
+function fixOf(p){
+  var t = p.timestamp || Date.now();
+  if(t > Date.now()) t = Date.now();
+  return {lat:p.coords.latitude, lon:p.coords.longitude, acc:p.coords.accuracy, ts:t};
+}
+function ensureLiveWatch(){
+  if(live.watchId != null || !live.from && !live.startedAt) return;
+  if(!navigator.geolocation) return;
   try{
     live.watchId = navigator.geolocation.watchPosition(function(p){
-      var c = {lat:p.coords.latitude, lon:p.coords.longitude, acc:p.coords.accuracy, ts:Date.now()};
+      var c = fixOf(p);
       warm.fix = c;
       if(!live.from){
-        live.from = c;
+        live.from = c; saveLive();
       } else if(live.fixing && c.acc < live.from.acc && haversine(live.from, c) < 15){
-        live.from = c;               /* まだ動いていないので、より正確な地点に置き換える */
+        live.from = c; saveLive();   /* まだ動いていないので、より正確な地点に置き換える */
       }
       if(Date.now() - live.startedAt > 8000) live.fixing = false;
       live.cur = c;
       live.dist = haversine(live.from, live.cur);
+      live.err = null;
       paintLive();
+      if(live.arm && liveFresh()) finishLive();   /* ②を押して待っていた場合、測位できた時点で確定 */
     }, function(err){
       live.err = err;
+      paintLive();
       var eo = document.getElementById("live-state");
       if(eo) eo.innerHTML = '<span style="color:var(--crit)">'
         + esc((err && err.code === 1) ? "位置情報が許可されていません"
             : (err && err.code === 2) ? "衛星を捕まえられません。空の開けた場所へ"
             : "測位できません") + '</span>';
-    }, {enableHighAccuracy:true, maximumAge:2000, timeout:30000});
+    }, {enableHighAccuracy:true, maximumAge:1000, timeout:60000});
   }catch(e){
     gpsError(e); return;
   }
   if(live.tick) clearInterval(live.tick);
-  live.tick = setInterval(paintLive, 1000);
-  lockScroll = true; render();   /* すぐに②の画面へ切り替える */
+  live.tick = setInterval(paintLive, 500);
+}
+/* watchPosition と別に、いま測り直す（画面を消したあとは watch が止まることがあるため） */
+function applyFix(c){
+  warm.fix = c;
+  if(!live.from){ live.from = c; saveLive(); }
+  live.cur = c;
+  live.dist = haversine(live.from, live.cur);
+  live.err = null;
+  paintLive();
+  if(live.arm && liveFresh()) finishLive();
+}
+function requestFreshFix(){
+  if(!navigator.geolocation) return;
+  try{
+    navigator.geolocation.getCurrentPosition(function(p){
+      applyFix(fixOf(p));
+    }, function(){}, {enableHighAccuracy:true, maximumAge:1000, timeout:30000});
+  }catch(e){}
+}
+/* 画面を消して戻ってきたとき：古い位置を捨てて測り直す */
+function resumeLive(){
+  if(!live.from) return;
+  live.resumedAt = Date.now();
+  live.cur = null;
+  live.fixing = false;
+  stopLive();          /* iOSで止まっている可能性があるので張り直す */
+  ensureLiveWatch();
+  requestFreshFix();
+  paintLive();
 }
 function confirmLive(){
-  if(live.watchId == null) return;
-  if(!live.from || !live.cur){ toast("まだ測位できていません。数秒お待ちください"); return; }
+  if(!live.from){ toast("先に①を押して開始地点を記録してください"); return; }
+  ensureLiveWatch();
+  if(!liveFresh()){
+    live.arm = true;            /* いま位置が古いので、新しく測位できた瞬間に自動で確定する */
+    requestFreshFix();
+    paintLive();
+    toast("いまの位置を測っています。数秒お待ちください");
+    return;
+  }
+  finishLive();
+}
+function finishLive(){
+  live.arm = false;
   lastMeasure = {club: state.ui.gpsClub, meters: live.dist, yards: live.dist / YD,
                  acc: Math.max(live.from ? live.from.acc : 0, live.cur ? live.cur.acc : 0),
                  method: "gps", endFix: live.cur};
-  stopLive(); live.from = null; live.cur = null; live.dist = 0;
-  lockScroll = true; render();
+  stopLive(); clearLive();
+  live.from = null; live.cur = null; live.dist = 0;
+  patchGps();
+}
+function cancelLive(){
+  live.arm = false; stopLive(); clearLive();
+  live.from = null; live.cur = null; live.dist = 0; live.startedAt = 0;
 }
 
 function parseLatLon(t){
@@ -1628,18 +1731,71 @@ function clubStatsHtml(cs){
   return out;
 }
 
+/* 計測パネル本体。①②のタップではここだけを描き直す */
+function gpsPanelHtml(){
+  var tracking = (live.watchId != null) || !!live.from;
+  var out = '';
+  if(gpsMode === "tap") gpsMode = "live";
+  if(gpsMode === "coords"){
+    out += coordsPanel();
+  } else if(gpsMode === "yard"){
+    out += yardPanel();
+  } else if(gpsMode === "steps"){
+    out += stepsPanel();
+  } else if(gpsMode === "live"){
+    if(tracking){
+      out += '<div style="text-align:center;padding:4px 0">'
+        + '<div class="readout"><b id="liveyd">'+(live.from&&live.cur?Math.round(live.dist/YD):'–')+'</b><span>yd</span></div>'
+        + '<div class="hint" id="live-state">測位中…</div></div>'
+        + '<button class="gpsbig" data-act="live-fix" data-armed="1">② ボールの位置で確定する</button>'
+        + '<p class="hint" style="margin-top:8px">画面を消してポケットに入れても大丈夫です。'
+        + 'ボールの地点で画面をつけて②を押してください（押したあと数秒で自動的に確定します）。</p>'
+        + '<div class="row"><button class="btn sm ghost" data-act="live-cancel">中止する</button></div>';
+    } else {
+      out += '<button class="gpsbig" id="gpsbtn">① ボールを打つ位置でタップ</button>'
+        + '<div id="gpsout"><p class="hint">立ち止まってタップしてください。'
+        + 'そのあとは画面を消してポケットに入れてかまいません。ボールの地点でもう一度画面をつけて②を押します。</p></div>';
+    }
+  } else {
+    out += '<button class="gpsbig" id="gpsbtn" data-armed="'+(gpsFrom?1:0)+'">'
+      + (gpsFrom ? '② 打った後、ボール地点でタップ' : '① ボールを打つ位置でタップ') + '</button>'
+      + '<div id="gpsout" class="grid" style="gap:6px">'
+      + (gpsFrom ? '<p class="hint">1打目地点を記録しました（誤差 ±'+Math.round(gpsFrom.acc)+'m）。ボールの位置まで歩いて、②をタップしてください。</p>'
+                 : '<p class="hint">打つ位置と落下地点の2か所でタップして、その2点間の距離を出します。</p>')
+      + '</div>';
+  }
+  out += (lastMeasure ? '<div class="note" style="margin-top:12px"><b>'+esc(lastMeasure.club)+'　'+Math.round(lastMeasure.yards)+' yd</b>'
+        + '（'+Math.round(lastMeasure.meters)+' m ／ '+(state.ui.shotNo||1)+'打目'
+        + (lastMeasure.acc?' ／ <span style="color:'+accColor(lastMeasure.acc)+'">誤差 ±'+Math.round(lastMeasure.acc)+'m</span>':'')+'）'
+        + (accLevel(lastMeasure.acc) === "ok" ? ''
+           : '<div style="margin-top:6px;color:'+accColor(lastMeasure.acc)+';font-weight:700">'+accNote(lastMeasure.acc)+'</div>')
+        + '<div class="row" style="margin-top:10px"><button class="btn primary sm" data-act="save-shot">この記録を保存</button>'
+        + '<button class="btn sm ghost" data-act="drop-shot">破棄</button></div></div>' : '');
+  return out;
+}
+/* 画面全体を作り直さずにパネルだけ差し替える */
+function patchGps(){
+  var el = document.getElementById("gps-panel");
+  if(!el){ lockScroll = true; render(); return; }
+  el.innerHTML = gpsPanelHtml();
+  paintLive();
+}
 function viewGps(){
   var r = currentRound();
   var idx = state.ui.hole;
   var cs = allClubStats();
-  var tracking = live.watchId != null;
+  var tracking = (live.watchId != null) || !!live.from;
   var env = gpsEnv();
   var embedded = env.framed && (env.policy === false || state.settings.gpsBlocked);
 
   var out = '<div class="sec"><div class="sec-h"><span class="eyebrow">GPS</span><h2>飛距離を計測する</h2></div>';
   out += '<div class="card grid" style="gap:14px">'
     + (embedded ? gpsUnlockPanel() : "")
-    + (!env.framed ? '<div class="note" id="warm-state">GPSの準備をしています…</div>' : '');
+    + (!env.framed ? '<div class="note" id="warm-state">GPSの準備をしています…</div>' : '')
+    + (!env.framed ? '<label class="row" style="gap:8px;cursor:pointer;font-size:13.5px;color:var(--ink-2);margin-top:-6px">'
+        + '<input type="checkbox" id="warmopt" data-act="warm-opt" style="width:20px;height:20px;min-height:0"'
+        + (state.settings.gpsWarm === false ? '' : ' checked') + '>'
+        + 'ラウンド中はGPSを温めておく（タップの反応が速くなります／電池を少し多く使います）</label>' : '');
 
   /* ① 記録するホール */
   if(r){
@@ -1662,42 +1818,8 @@ function viewGps(){
   out += '<div><label class="f">クラブ</label>'
     + clubGridHtml('gps-club', state.ui.gpsClub) + '</div>';
 
-  /* ④ 計測パネル */
-  if(gpsMode === "tap") gpsMode = "live";
-  if(gpsMode === "coords"){
-    out += coordsPanel();
-  } else if(gpsMode === "yard"){
-    out += yardPanel();
-  } else if(gpsMode === "steps"){
-    out += stepsPanel();
-  } else if(gpsMode === "live"){
-    if(tracking){
-      out += '<div style="text-align:center;padding:4px 0">'
-        + '<div class="readout"><b id="liveyd">'+(live.from&&live.cur?Math.round(live.dist/YD):'–')+'</b><span>yd</span></div>'
-        + '<div class="hint" id="live-state">測位中…</div></div>'
-        + '<button class="gpsbig" data-act="live-fix" data-armed="1">② ボールの位置で確定する</button>'
-        + '<div class="row"><button class="btn sm ghost" data-act="live-cancel">中止する</button></div>';
-    } else {
-      out += '<button class="gpsbig" id="gpsbtn">① ボールを打つ位置でタップ</button>'
-        + '<div id="gpsout"><p class="hint">立ち止まってタップしてください。タップした瞬間から計測が始まります。</p></div>';
-    }
-  } else {
-    out += '<button class="gpsbig" id="gpsbtn" data-armed="'+(gpsFrom?1:0)+'">'
-      + (gpsFrom ? '② 打った後、ボール地点でタップ' : '① ボールを打つ位置でタップ') + '</button>'
-      + '<div id="gpsout" class="grid" style="gap:6px">'
-      + (gpsFrom ? '<p class="hint">1打目地点を記録しました（誤差 ±'+Math.round(gpsFrom.acc)+'m）。ボールの位置まで歩いて、②をタップしてください。</p>'
-                 : '<p class="hint">打つ位置と落下地点の2か所でタップして、その2点間の距離を出します。</p>')
-      + '</div>';
-  }
-
-  /* 確定後の保存 */
-  out += (lastMeasure ? '<div class="note"><b>'+esc(lastMeasure.club)+'　'+Math.round(lastMeasure.yards)+' yd</b>'
-        + '（'+Math.round(lastMeasure.meters)+' m ／ '+(state.ui.shotNo||1)+'打目'
-        + (lastMeasure.acc?' ／ <span style="color:'+accColor(lastMeasure.acc)+'">誤差 ±'+Math.round(lastMeasure.acc)+'m</span>':'')+'）'
-        + (accLevel(lastMeasure.acc) === "ok" ? ''
-           : '<div style="margin-top:6px;color:'+accColor(lastMeasure.acc)+';font-weight:700">'+accNote(lastMeasure.acc)+'</div>')
-        + '<div class="row" style="margin-top:10px"><button class="btn primary sm" data-act="save-shot">この記録を保存</button>'
-        + '<button class="btn sm ghost" data-act="drop-shot">破棄</button></div></div>' : '');
+  /* ④ 計測パネル（ここだけ差し替えるので、タップの反応が速い） */
+  out += '<div id="gps-panel">' + gpsPanelHtml() + '</div>';
 
   /* ⑤ 計測方式 */
   out += '<div style="border-top:1px solid var(--grid);padding-top:12px"><label class="f">計測方式</label><div class="chips">'
@@ -2307,13 +2429,37 @@ function render(){
   });
   paintCloudStatus();
   paintStoreWarn();
-  if(t === "gps"){ paintDiag(); startWarm(); paintWarmState(); if(live.watchId != null) paintLive(); }
+  if(t === "gps"){ paintDiag(); startWarm(); paintWarmState(); if(live.from){ ensureLiveWatch(); paintLive(); } }
+  else if(keepWarm()) startWarm();
   if(t === "round") setTimeout(scrollTabIntoView, 30);
   if(!lockScroll) window.scrollTo({top:0, behavior:"instant"});
   lockScroll = false;
 }
 var lockScroll = false;
-function go(tab){ if(tab !== "gps"){ stopLive(); stopWarm(); } state.ui.tab = tab; render(); }
+function keepWarm(){
+  if(state.settings.gpsWarm === false) return false;
+  if(live.from) return true;                       /* 計測の途中は必ず維持 */
+  var r = null;
+  for(var i=0;i<state.rounds.length;i++) if(state.rounds[i].id === state.ui.roundId) r = state.rounds[i];
+  return !!(r && !r.finished);
+}
+function go(tab){
+  if(tab !== "gps"){
+    if(!live.from) stopLive();
+    if(!keepWarm()) stopWarm();
+  }
+  state.ui.tab = tab; render();
+}
+/* 画面を消す／別アプリに切り替える → 戻ってきたときに測位をやり直す */
+function onWake(){
+  if(state.ui.tab === "gps" || keepWarm()){ startWarm(); paintWarmState(); }
+  if(live.from) resumeLive();
+}
+document.addEventListener("visibilitychange", function(){
+  if(document.visibilityState === "visible") onWake();
+});
+window.addEventListener("pageshow", onWake);
+window.addEventListener("focus", onWake);
 
 document.getElementById("tabs").addEventListener("click", function(e){
   var b = e.target.closest("button[data-tab]"); if(!b) return;
@@ -2478,7 +2624,7 @@ document.getElementById("view").addEventListener("click", async function(e){
   if(act === "gps-club"){ state.ui.gpsClub = b.dataset.v; lockScroll = true; render(); return; }
   if(act === "gps-mode"){ stopLive(); gpsFrom = null; gpsMode = b.dataset.v; lockScroll = true; render(); return; }
   if(act === "gps-reset"){ gpsFrom = null; lastMeasure = null; lockScroll = true; render(); return; }
-  if(act === "live-fix"){ confirmLive(); return; }
+  if(act === "live-fix"){ if(Date.now() - gpsTapAt < 800) return; confirmLive(); return; }
   if(act === "copy-diag"){
     var t = diagText();
     var box = document.getElementById("diagtext");
@@ -2530,7 +2676,7 @@ document.getElementById("view").addEventListener("click", async function(e){
     state.settings.stride = strd;
     recordShot(stp*strd/100/YD, "steps", null); return;
   }
-  if(act === "live-cancel"){ stopLive(); live.from = null; live.cur = null; live.dist = 0; lockScroll = true; render(); return; }
+  if(act === "live-cancel"){ cancelLive(); patchGps(); return; }
   if(act === "open-tab"){
     try{ window.open(location.href, "_blank", "noopener"); }
     catch(e){ toast("新しいタブを開けませんでした"); }
@@ -2614,6 +2760,11 @@ document.getElementById("view").addEventListener("click", async function(e){
     if(np2) np2.innerHTML = ninePickHtml(cid);
     return;
   }
+  if(act === "warm-opt"){
+    state.settings.gpsWarm = !!b.checked;
+    if(!state.settings.gpsWarm && state.ui.tab !== "gps" && !live.from) stopWarm();
+    markDirty(); return;
+  }
   if(act === "a-nine"){ state.ui.analysisNine = b.dataset.v || null; lockScroll = true; render(); return; }
   if(act === "preset-clubs"){
     var presets = {
@@ -2686,9 +2837,27 @@ document.getElementById("view").addEventListener("click", async function(e){
   }
 });
 
+/* ---- GPSの大きなボタンは押した瞬間に反応させる（clickを待たない） ---- */
+var gpsTapAt = 0;
+document.getElementById("view").addEventListener("pointerdown", function(e){
+  var b = e.target.closest('#gpsbtn, .gpsbig[data-act="live-fix"]');
+  if(!b || gpsMode !== "live") return;
+  gpsTapAt = Date.now();
+  b.classList.add("press");
+  setTimeout(function(){ b.classList.remove("press"); }, 140);
+  e.preventDefault();
+  if(b.id === "gpsbtn"){
+    b.textContent = "測位中…";
+    if(!gpsBusy){ gpsBusy = true; try{ startLive(); } finally { gpsBusy = false; } }
+  }else{
+    confirmLive();
+  }
+}, {passive:false});
+
 /* ---- GPSボタン（別ハンドラ：非同期） ---- */
 document.getElementById("view").addEventListener("click", async function(e){
   if(!e.target.closest("#gpsbtn")) return;
+  if(Date.now() - gpsTapAt < 800) return;   /* pointerdownで処理済み */
   var btn = document.getElementById("gpsbtn");
   if(gpsBusy) return;
   gpsBusy = true;
@@ -2772,6 +2941,8 @@ document.getElementById("view").addEventListener("input", function(e){
 
 /* ============================ 起動 ============================ */
 bootState();
+restoreLive();
+if(live.from) state.ui.tab = "gps";   /* 計測の途中でアプリが落ちても、続きから確定できる */
 render();
 
 (async function(){
