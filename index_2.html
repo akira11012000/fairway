@@ -139,6 +139,12 @@ tbody tr:hover{background:var(--surface-2)}
 .stepper button{width:54px;height:54px;border-radius:12px;border:1px solid var(--line);background:var(--surface-2);font-size:24px;font-weight:700;cursor:pointer;line-height:1}
 .stepper .val{font-family:var(--serif);font-size:38px;min-width:56px;text-align:center;font-variant-numeric:tabular-nums}
 .chips{display:flex;flex-wrap:wrap;gap:8px}
+.clubgrid{display:grid;gap:5px}
+.clubgrid button{min-height:44px;border-radius:9px;border:1px solid var(--line);background:var(--surface);cursor:pointer;font-size:14px;padding:0 2px;min-width:0;font-weight:600}
+.clubgrid button[aria-pressed="true"]{background:var(--accent);color:var(--on-accent);border-color:var(--accent)}
+.shotrowsel{display:grid;grid-template-columns:repeat(5,1fr);gap:6px}
+.shotrowsel button{min-height:44px;border-radius:9px;border:1px solid var(--line);background:var(--surface);cursor:pointer;font-size:14px;padding:0 2px;min-width:0}
+.shotrowsel button[aria-pressed="true"]{background:var(--accent);color:var(--on-accent);border-color:var(--accent);font-weight:700}
 .chips button{min-height:42px;padding:0 14px;border-radius:999px;border:1px solid var(--line);background:var(--surface);cursor:pointer;font-size:15px}
 .chips button[aria-pressed="true"]{background:var(--accent);color:var(--on-accent);border-color:var(--accent);font-weight:700}
 .chips button .ordno{display:inline-block;margin-left:6px;min-width:18px;height:18px;line-height:18px;border-radius:9px;background:rgba(255,255,255,.28);font-size:11px;font-weight:700}
@@ -211,6 +217,8 @@ ul.coach li{margin-bottom:6px}
 .holetabs button{flex:0 0 auto;min-width:60px;padding:5px 8px;border-radius:10px;border:1px solid var(--line);background:var(--surface);text-align:center;line-height:1.2;cursor:pointer}
 .holetabs button b{display:block;font-size:15px;font-family:var(--serif)}
 .holetabs button small{display:block;font-size:10px;color:var(--muted)}
+.holetabs button small.sc{font-size:15px;font-weight:700;color:var(--crit);font-family:var(--serif);line-height:1.1}
+.holetabs button[aria-current="true"] small.sc{color:#ffd7cf}
 .holetabs button.done{border-color:var(--accent);background:var(--accent-soft)}
 .holetabs button[aria-current="true"]{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
 .holetabs button[aria-current="true"] small{color:var(--on-accent);opacity:.8}
@@ -223,13 +231,19 @@ ul.coach li{margin-bottom:6px}
 .cell small{font-size:11px;letter-spacing:.08em;color:var(--muted);font-weight:700}
 .cell b{font-family:var(--serif);font-size:34px;line-height:1.05;font-variant-numeric:tabular-nums}
 .cell[aria-selected="true"]{border-color:var(--s2);background:var(--accent-soft)}
-.keypad{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-top:10px}
-.keypad button{min-height:54px;border-radius:12px;border:1px solid var(--line);background:var(--surface-2);font-size:21px;font-weight:700;cursor:pointer;font-variant-numeric:tabular-nums}
-.keypad button.clear{font-size:14px;color:var(--muted);font-weight:500}
+.keypad{display:grid;grid-template-columns:repeat(6,1fr);gap:6px;margin-top:10px}
+.keypad button{min-height:52px;border-radius:12px;border:1px solid var(--line);background:var(--surface-2);font-size:20px;font-weight:700;cursor:pointer;font-variant-numeric:tabular-nums;padding:0;min-width:0}
+.keypad button.clear{font-size:13px;color:var(--muted);font-weight:500}
+.keypad button.tens{font-size:15px;color:var(--accent)}
+.keypad button.tens[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
+.keypad button[disabled]{opacity:.28}
 .teemain{width:100%;min-height:52px;border-radius:12px;border:1px solid var(--line);background:var(--surface);font-size:16px;font-weight:700;cursor:pointer;margin-bottom:8px}
 .teemain[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
 .teerow{display:grid;gap:8px}
-.teerow button{min-height:50px;border-radius:12px;border:1px solid var(--line);background:var(--surface);font-size:15px;cursor:pointer;padding:0 4px;min-width:0}
+.teerow button{min-height:50px;border-radius:12px;border:1px solid var(--line);background:var(--surface);font-size:15px;cursor:pointer;padding:0 2px;min-width:0}
+.teerow button{white-space:nowrap}
+.teerow.t5 button{font-size:11.5px;letter-spacing:-.02em}
+.teerow button.main{border-color:var(--accent);border-width:2px;font-weight:700}
 .teerow button[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--on-accent);font-weight:700}
 .counters{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:4px}
 .counter{border:1px solid var(--line);border-radius:10px;padding:4px 3px 5px;text-align:center;min-width:0;background:var(--surface)}
@@ -1018,8 +1032,19 @@ function totalsHtml(r){
 function tabsHtml(r, idx){
   return r.holes.map(function(h, i){
     return '<button data-act="hole-tab" data-i="'+i+'" aria-current="'+(i===idx)+'" class="'+(h.score?'done':'')+'">'
-      + '<b>'+(h.score||hLabel(r,i)+'H')+'</b><small>'+(h.score?hLabel(r,i)+'H':'PAR'+h.par)+'</small></button>';
+      + '<b>'+hLabel(r,i)+'H</b>'
+      + (h.score ? '<small class="sc">'+h.score+'</small>' : '<small>PAR'+h.par+'</small>')
+      + '</button>';
   }).join('');
+}
+/* クラブ選択：2行に収める（最大7列） */
+function clubGridHtml(act, sel){
+  var list = state.clubs.filter(function(c){ return c!=='PT'; });
+  var cols = Math.min(7, Math.max(4, Math.ceil(list.length/2)));
+  return '<div class="clubgrid" style="grid-template-columns:repeat('+cols+',1fr)">'
+    + list.map(function(c){
+        return '<button data-act="'+act+'" data-v="'+esc(c)+'" aria-pressed="'+(sel===c)+'">'+esc(c)+'</button>';
+      }).join('') + '</div>';
 }
 function scoreLabel(h){
   if(!h.score) return '';
@@ -1030,10 +1055,18 @@ function cellHtml(field, label, val){
   return '<button class="cell" data-act="sel-field" data-f="'+field+'" aria-selected="'+(state.ui.field===field)+'">'
     + '<small>'+label+'</small><b>'+(val ? val : '–')+'</b></button>';
 }
+var MAX_SCORE = 15;
 function keypadHtml(){
-  var keys = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,0];
-  return keys.map(function(k){ return '<button data-act="key" data-v="'+k+'">'+k+'</button>'; }).join('')
-    + '<button class="clear" data-act="key" data-v="-1">消す</button>';
+  var tens = !!state.ui.tens;
+  var out = '';
+  [0,1,2,3,4,5,6,7,8,9].forEach(function(d){
+    var v = tens ? 10 + d : d;
+    var over = v > MAX_SCORE;
+    out += '<button data-act="key" data-v="'+v+'"'+(over?' disabled':'')+'>'+v+'</button>';
+  });
+  out += '<button class="tens" data-act="tens" aria-pressed="'+tens+'">10＋</button>';
+  out += '<button class="clear" data-act="key" data-v="-1">消す</button>';
+  return out;
 }
 function nextField(r, cur){
   var order = ["score","putts"];
@@ -1080,17 +1113,13 @@ function holeCardHtml(r, idx){
     out += '<p class="hint" style="margin-top:8px">上の枠を押してから数字を押すと、その方のスコアが入ります。</p>';
 
   /* ティーショット：クラブ → 方向の順 */
-  out += '<div class="blk"><label class="f">ティーショットのクラブ</label><div class="chips">'
-    + state.clubs.filter(function(c){ return c!=='PT'; }).map(function(c){
-        return '<button data-act="tee-club" data-v="'+esc(c)+'" aria-pressed="'+(h.teeClub===c)+'">'+esc(c)+'</button>';
-      }).join('') + '</div></div>';
-  var main = tees[0], rest = tees.slice(1);
+  out += '<div class="blk"><label class="f">ティーショットのクラブ</label>'
+    + clubGridHtml('tee-club', h.teeClub) + '</div>';
   out += '<div class="blk"><label class="f">ティーショットの方向</label>'
-    + '<button class="teemain" data-act="tee-res" data-v="'+main.k+'" aria-pressed="'+(h.tee===main.k)+'">'
-    + esc(h.par===3 ? 'ワンオン' : 'フェアウェイキープ') + '</button>'
-    + '<div class="teerow" style="grid-template-columns:repeat('+rest.length+',1fr)">'
-    + rest.map(function(o){
-        return '<button data-act="tee-res" data-v="'+o.k+'" aria-pressed="'+(h.tee===o.k)+'">'+esc(o.sn||o.n)+'</button>';
+    + '<div class="teerow'+(tees.length>=5?' t5':'')+'" style="grid-template-columns:repeat('+tees.length+',1fr)">'
+    + tees.map(function(o, i){
+        return '<button'+(i===0?' class="main"':'')+' data-act="tee-res" data-v="'+o.k+'" aria-pressed="'+(h.tee===o.k)+'">'
+          + esc(o.sn||o.n)+'</button>';
       }).join('') + '</div></div>';
 
   /* OB・バンカー・ペナルティ（3つ横並び） */
@@ -1338,16 +1367,40 @@ function gpsError(err){
   if(out) out.innerHTML = '<div class="note" style="border-color:var(--crit)"><b>計測できませんでした</b><div style="margin-top:4px">'+esc(msg)+'</div>'+raw+extra+'</div>';
 }
 
+/* ⑥ 測位精度の判定：±10mまで良／±25mまで注意／それ以上は不良 */
+function accLevel(a){ return (a == null) ? "none" : a <= 10 ? "ok" : a <= 25 ? "warn" : "bad"; }
+function accColor(a){ var l = accLevel(a); return l==="ok" ? "var(--good)" : l==="warn" ? "var(--serious)" : "var(--crit)"; }
+function accNote(a){
+  var l = accLevel(a);
+  if(l === "ok") return '';
+  if(l === "warn") return '⚠ 測位誤差が大きめです。飛距離が10〜20yずれることがあります。';
+  return '⚠ 測位誤差が大きすぎます。この状態では正しく計測できません。';
+}
+function accHelp(){
+  return '<div style="margin-top:6px;font-size:13px">'
+    + '空が開けた場所に立ち、10〜20秒そのままお待ちください。'
+    + '<b>機内モードでは初回の測位に1〜3分かかり、誤差も大きくなります</b>（このアプリはラウンド中いっさい通信しないので、機内モードにする必要はありません）。'
+    + '</div>';
+}
 /* ---- 歩いて計測（ライブ追尾） ---- */
 function startWarm(){
   if(warm.watchId != null || !navigator.geolocation) return;
   try{
     warm.watchId = navigator.geolocation.watchPosition(function(p){
       warm.fix = {lat:p.coords.latitude, lon:p.coords.longitude, acc:p.coords.accuracy, ts:Date.now()};
-      var w = document.getElementById("warm-state");
-      if(w) w.innerHTML = 'GPS受信中（誤差 ±'+Math.round(warm.fix.acc)+'m）';
+      paintWarmState();
     }, function(){}, {enableHighAccuracy:true, maximumAge:2000, timeout:30000});
   }catch(e){}
+}
+function paintWarmState(){
+  var w = document.getElementById("warm-state");
+  if(!w) return;
+  if(!warm.fix){ w.style.borderColor = ""; w.innerHTML = 'GPSの準備をしています…'; return; }
+  var a = warm.fix.acc, lv = accLevel(a);
+  w.style.borderColor = lv === "ok" ? "" : lv === "warn" ? "var(--serious)" : "var(--crit)";
+  w.innerHTML = 'GPS受信中　<b style="color:'+accColor(a)+'">誤差 ±'+Math.round(a)+'m</b>'
+    + (lv === "ok" ? '　<span style="color:var(--good)">計測できます</span>'
+       : '<div style="margin-top:4px;color:'+accColor(a)+';font-weight:700">'+accNote(a)+'</div>' + accHelp());
 }
 function stopWarm(){
   if(warm.watchId != null){ try{ navigator.geolocation.clearWatch(warm.watchId); }catch(e){} }
@@ -1356,6 +1409,7 @@ function stopWarm(){
 function stopLive(){
   if(live.watchId != null){ try{ navigator.geolocation.clearWatch(live.watchId); }catch(e){} }
   live.watchId = null;
+  if(live.tick){ clearInterval(live.tick); live.tick = null; }
 }
 function paintLive(){
   var ready = !!(live.from && live.cur);
@@ -1364,10 +1418,19 @@ function paintLive(){
   if(yd) yd.textContent = ready ? yds : "–";
   var st = document.getElementById("live-state");
   if(st){
-    st.innerHTML = ready
-      ? (Math.round(live.dist) + ' m ／ 測位誤差 ±' + Math.round(live.cur.acc) + 'm'
-         + ((live.fixing && live.dist < 15) ? '　<span style="color:var(--s2)">開始地点を調整中</span>' : ''))
-      : '<span style="color:var(--s2)">測位中… そのままお待ちください</span>';
+    if(ready){
+      var a = live.cur.acc;
+      st.innerHTML = Math.round(live.dist) + ' m ／ <b style="color:'+accColor(a)+'">測位誤差 ±' + Math.round(a) + 'm</b>'
+        + ((live.fixing && live.dist < 15) ? '　<span style="color:var(--s2)">開始地点を調整中</span>' : '')
+        + (accLevel(a) === "ok" ? ''
+           : '<div style="margin-top:6px;padding:8px 10px;border:1px solid '+accColor(a)+';border-radius:10px;'
+             + 'color:'+accColor(a)+';font-weight:700;text-align:left">'+accNote(a)+'</div>');
+    }else{
+      var sec = Math.round((Date.now() - (live.startedAt||Date.now()))/1000);
+      st.innerHTML = '<span style="color:var(--s2)">測位中… '+sec+'秒</span>'
+        + (sec >= 10 ? '<div style="margin-top:6px;padding:8px 10px;border:1px solid var(--serious);border-radius:10px;'
+             + 'color:var(--ink);text-align:left">まだ衛星を捕まえられていません。'+accHelp()+'</div>' : '');
+    }
   }
   var yd2 = document.getElementById("m-yd");
   if(yd2) yd2.textContent = ready ? yds : "–";
@@ -1403,6 +1466,8 @@ async function startLive(){
   }catch(e){
     gpsError(e); return;
   }
+  if(live.tick) clearInterval(live.tick);
+  live.tick = setInterval(paintLive, 1000);
   lockScroll = true; render();   /* すぐに②の画面へ切り替える */
 }
 function confirmLive(){
@@ -1585,8 +1650,8 @@ function viewGps(){
             + '<b>'+hLabel(r,i)+'H</b><small>PAR'+hh.par+'</small></button>';
         }).join('') + '</div></div>';
     /* ② 何打目 */
-    out += '<div><label class="f">何打目の計測ですか</label><div class="chips">'
-      + [1,2,3,4,5,6].map(function(i){
+    out += '<div><label class="f">何打目の計測ですか</label><div class="shotrowsel">'
+      + [1,2,3,4,5].map(function(i){
           return '<button data-act="m-shotno" data-v="'+i+'" aria-pressed="'+((state.ui.shotNo||1)===i)+'">'+i+'打目</button>';
         }).join('') + '</div></div>';
   } else {
@@ -1594,12 +1659,11 @@ function viewGps(){
   }
 
   /* ③ クラブ */
-  out += '<div><label class="f">クラブ</label><div class="chips">'
-    + state.clubs.filter(function(c){ return c!=="PT"; }).map(function(c){
-        return '<button data-act="gps-club" data-v="'+esc(c)+'" aria-pressed="'+(state.ui.gpsClub===c)+'">'+esc(c)+'</button>';
-      }).join("") + '</div></div>';
+  out += '<div><label class="f">クラブ</label>'
+    + clubGridHtml('gps-club', state.ui.gpsClub) + '</div>';
 
   /* ④ 計測パネル */
+  if(gpsMode === "tap") gpsMode = "live";
   if(gpsMode === "coords"){
     out += coordsPanel();
   } else if(gpsMode === "yard"){
@@ -1629,14 +1693,15 @@ function viewGps(){
   /* 確定後の保存 */
   out += (lastMeasure ? '<div class="note"><b>'+esc(lastMeasure.club)+'　'+Math.round(lastMeasure.yards)+' yd</b>'
         + '（'+Math.round(lastMeasure.meters)+' m ／ '+(state.ui.shotNo||1)+'打目'
-        + (lastMeasure.acc?' ／ 誤差 ±'+Math.round(lastMeasure.acc)+'m':'')+'）'
+        + (lastMeasure.acc?' ／ <span style="color:'+accColor(lastMeasure.acc)+'">誤差 ±'+Math.round(lastMeasure.acc)+'m</span>':'')+'）'
+        + (accLevel(lastMeasure.acc) === "ok" ? ''
+           : '<div style="margin-top:6px;color:'+accColor(lastMeasure.acc)+';font-weight:700">'+accNote(lastMeasure.acc)+'</div>')
         + '<div class="row" style="margin-top:10px"><button class="btn primary sm" data-act="save-shot">この記録を保存</button>'
         + '<button class="btn sm ghost" data-act="drop-shot">破棄</button></div></div>' : '');
 
   /* ⑤ 計測方式 */
   out += '<div style="border-top:1px solid var(--grid);padding-top:12px"><label class="f">計測方式</label><div class="chips">'
-    + '<button data-act="gps-mode" data-v="live" aria-pressed="'+(gpsMode==="live")+'">GPSで歩いて計測</button>'
-    + '<button data-act="gps-mode" data-v="tap" aria-pressed="'+(gpsMode==="tap")+'">GPSで2点タップ</button>'
+    + '<button data-act="gps-mode" data-v="live" aria-pressed="'+(gpsMode==="live")+'">GPSで2点タップ</button>'
     + '<button data-act="gps-mode" data-v="coords" aria-pressed="'+(gpsMode==="coords")+'">座標を貼り付け</button>'
     + '<button data-act="gps-mode" data-v="yard" aria-pressed="'+(gpsMode==="yard")+'">予備：残り距離から</button>'
     + '<button data-act="gps-mode" data-v="steps" aria-pressed="'+(gpsMode==="steps")+'">予備：歩測</button>'
@@ -2242,7 +2307,7 @@ function render(){
   });
   paintCloudStatus();
   paintStoreWarn();
-  if(t === "gps"){ paintDiag(); startWarm(); }
+  if(t === "gps"){ paintDiag(); startWarm(); paintWarmState(); if(live.watchId != null) paintLive(); }
   if(t === "round") setTimeout(scrollTabIntoView, 30);
   if(!lockScroll) window.scrollTo({top:0, behavior:"instant"});
   lockScroll = false;
@@ -2334,6 +2399,7 @@ document.getElementById("view").addEventListener("click", async function(e){
 
   if(r && h){
     if(act === "prev-hole" || act === "next-hole"){
+      state.ui.tens = false;
       state.ui.hole = act === "prev-hole" ? Math.max(0, state.ui.hole-1) : Math.min(r.holes.length-1, state.ui.hole+1);
       state.ui.field = "score"; resetShotNo();
       patchHole(); scrollTabIntoView();
@@ -2341,13 +2407,18 @@ document.getElementById("view").addEventListener("click", async function(e){
       return;
     }
     if(act === "hole-tab"){
+      state.ui.tens = false;
       state.ui.hole = Number(b.dataset.i); state.ui.field = "score"; resetShotNo();
       patchHole(); scrollTabIntoView();
       return;
     }
-    if(act === "sel-field"){ state.ui.field = b.dataset.f; patchHole(); return; }
+    if(act === "sel-field"){ state.ui.tens = false; state.ui.field = b.dataset.f; patchHole(); return; }
+    if(act === "tens"){
+      state.ui.tens = !state.ui.tens; patchHole(); return;
+    }
     if(act === "key"){
       var v = Number(b.dataset.v);
+      state.ui.tens = false;
       var f = state.ui.field || "score";
       if(f.charAt(0) === "o" && f.length === 2){
         var oi = Number(f.charAt(1));
