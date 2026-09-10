@@ -186,16 +186,18 @@ table.card-tbl tr.hi td{background:var(--accent-soft)}
 .pill.on{background:var(--accent-soft);border-color:transparent;color:var(--accent);font-weight:800}
 
 /* ---- gps ---- */
-.stepbox{display:flex;align-items:center;gap:6px;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:5px;box-shadow:var(--shadow-sm)}
-.stepbox button{flex:none;width:50px;height:52px;border-radius:11px;border:1px solid var(--line);background:var(--surface-2);font-size:23px;font-weight:800;cursor:pointer;line-height:1;color:var(--accent)}
+.selrow{display:grid;grid-template-columns:1.5fr 1fr;gap:8px}
+.selrow>*{min-width:0}
+.stepbox{display:flex;align-items:center;gap:3px;background:var(--surface);border:1px solid var(--line);border-radius:13px;padding:4px;box-shadow:var(--shadow-sm)}
+.stepbox button{flex:1 1 46px;min-width:34px;max-width:52px;height:50px;border-radius:10px;border:1px solid var(--line);background:var(--surface-2);font-size:21px;font-weight:800;cursor:pointer;line-height:1;color:var(--accent);padding:0}
 .stepbox button:disabled{opacity:.28;color:var(--muted)}
-.stepbox .sv{flex:1 1 auto;min-width:0;text-align:center;line-height:1.1}
-.stepbox .sv b{display:block;font-family:var(--display);font-weight:800;font-size:23px;letter-spacing:-.02em;font-variant-numeric:tabular-nums;white-space:nowrap}
-.stepbox .sv small{display:block;font-size:10.5px;color:var(--muted);font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.stepbox .sv{flex:1 0 auto;min-width:0;text-align:center;line-height:1.1;padding:0 2px}
+.stepbox .sv b{display:block;font-family:var(--display);font-weight:800;font-size:20px;letter-spacing:-.03em;font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.stepbox .sv small{display:block;font-size:9.5px;color:var(--muted);font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .ydwrap{text-align:center;padding:6px 0 12px}
-.gpsrow{display:grid;grid-template-columns:1fr 92px;gap:8px;align-items:stretch}
-.undobig{border-radius:18px;border:1px solid var(--line);background:var(--surface);color:var(--ink-2);font-weight:800;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-size:19px;line-height:1;box-shadow:var(--shadow-sm);padding:0}
-.undobig span{font-size:12px;font-weight:700;line-height:1.25}
+.gpsrow{display:grid;grid-template-columns:1fr 104px;gap:8px;align-items:stretch}
+.undobig{border-radius:14px;border:1px solid var(--line);background:var(--surface);color:var(--ink-2);font-weight:800;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:4px;font-size:14px;line-height:1;box-shadow:var(--shadow-sm);padding:0;white-space:nowrap}
+.undobig span{font-size:11.5px;font-weight:700;line-height:1.2}
 .undobig:disabled{opacity:.35}
 .undobig:not(:disabled):active{transform:scale(.97)}
 .choose{display:grid;grid-template-columns:1.35fr 1fr;gap:10px;margin-top:2px}
@@ -203,7 +205,7 @@ table.card-tbl tr.hi td{background:var(--accent-soft)}
 .choose .ch.save{background:linear-gradient(180deg,var(--accent-2),var(--accent))}
 .choose .ch.drop{background:linear-gradient(180deg,#e8735a,#c8372d)}
 .choose .ch:active{transform:scale(.975);filter:brightness(.92)}
-.gpsbig{width:100%;min-height:96px;border-radius:18px;font-family:var(--display);font-size:20px;line-height:1.25;font-weight:800;letter-spacing:.01em;border:0;background:linear-gradient(180deg,var(--accent-2),var(--accent));color:var(--on-accent);cursor:pointer;box-shadow:var(--shadow-lift);transition:transform .06s ease, filter .06s ease;-webkit-tap-highlight-color:transparent}
+.gpsbig{width:100%;min-height:48px;border-radius:14px;font-family:var(--display);font-size:16px;letter-spacing:-.03em;white-space:nowrap;line-height:1.2;font-weight:800;letter-spacing:.01em;border:0;background:linear-gradient(180deg,var(--accent-2),var(--accent));color:var(--on-accent);cursor:pointer;box-shadow:var(--shadow-lift);transition:transform .06s ease, filter .06s ease;-webkit-tap-highlight-color:transparent}
 .gpsbig[data-armed="1"]{background:linear-gradient(180deg,#f97a4e,var(--hot));color:#fff;box-shadow:0 2px 4px rgba(0,0,0,.08), 0 16px 34px -14px rgba(226,84,42,.6)}
 .gpsbig:disabled{opacity:.55;cursor:progress}
 .gpsbig:active,.gpsbig.press{transform:scale(.975);filter:brightness(.92)}
@@ -325,6 +327,7 @@ ul.coach li{margin-bottom:7px}
   #toast{bottom:88px}
 }
 @media (max-width:380px){ .two.tight{grid-template-columns:1fr} }
+@media (max-width:360px){ .stepbox .sv small .ydsub{display:none} }
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 </style>
 
@@ -1534,7 +1537,7 @@ function paintLive(){
     }
   }
   var big = document.querySelector('.gpsbig[data-act="live-fix"]');
-  if(big) big.innerHTML = live.arm ? '測位中…<br>自動で確定します' : '② ボール地点で<br>確定する';
+  if(big) big.innerHTML = live.arm ? '測位中… 自動で確定' : '② ボール地点で確定';
   if(live.arm && !liveFresh() && Date.now() - (live.lastAsk||0) > 1200){
     live.lastAsk = Date.now(); requestFreshFix();
   }
@@ -1804,10 +1807,10 @@ function holeShotStepHtml(r, idx){
   return '<div><label class="f">記録するホール</label>'
     + '<div class="stepbox">'
     + '<button data-act="m-hole-step" data-d="-1"'+(idx<=0?' disabled':'')+' aria-label="前のホール">−</button>'
-    + '<div class="sv"><b>'+hLabel(r,idx)+'H</b><small>PAR'+h.par+(h.yard?' ／ '+h.yard+'y':'')+'</small></div>'
+    + '<div class="sv"><b>'+hLabel(r,idx)+'H</b><small>PAR'+h.par+(h.yard?'<span class="ydsub">・'+h.yard+'y</span>':'')+'</small></div>'
     + '<button data-act="m-hole-step" data-d="1"'+(idx>=r.holes.length-1?' disabled':'')+' aria-label="次のホール">＋</button>'
     + '</div></div>'
-    + '<div><label class="f">何打目の計測</label>'
+    + '<div><label class="f">何打目</label>'
     + '<div class="stepbox">'
     + '<button data-act="m-shot-step" data-d="-1"'+(sn<=1?' disabled':'')+' aria-label="前の打数">−</button>'
     + '<div class="sv"><b>'+sn+'</b><small>打目</small></div>'
@@ -1855,8 +1858,8 @@ function gpsPanelHtml(){
       + '<div class="readout"><b id="liveyd">'+(live.from&&live.cur?Math.round(live.dist/YD):'–')+'</b><span>yd</span></div>'
       + '<div class="hint" id="live-state">測位中…</div></div>'
       + '<div class="gpsrow">'
-      + '<button class="gpsbig" data-act="live-fix" data-armed="1">② ボール地点で<br>確定する</button>'
-      + '<button class="undobig" data-act="live-cancel">↩<span>もとに<br>戻す</span></button>'
+      + '<button class="gpsbig" data-act="live-fix" data-armed="1">② ボール地点で確定</button>'
+      + '<button class="undobig" data-act="live-cancel">↩<span>もとに戻す</span></button>'
       + '</div>'
       + '<p class="hint" style="margin-top:8px">画面を消してポケットに入れても大丈夫です。'
       + 'ボールの地点で画面をつけて②を押してください（押したあと数秒で自動的に確定します）。</p>';
@@ -1869,8 +1872,8 @@ function gpsPanelHtml(){
     + '<div class="readout"><b id="liveyd">–</b><span>yd</span></div>'
     + '<div class="hint" id="live-state">①を押すと計測が始まります</div></div>'
     + '<div class="gpsrow">'
-    + '<button class="gpsbig" id="gpsbtn">① 打つ位置で<br>タップ</button>'
-    + '<button class="undobig" data-act="undo-save"'+(canUndo?'':' disabled')+'>↩<span>もとに<br>戻す</span></button>'
+    + '<button class="gpsbig" id="gpsbtn">① 打つ位置でタップ</button>'
+    + '<button class="undobig" data-act="undo-save"'+(canUndo?'':' disabled')+'>↩<span>もとに戻す</span></button>'
     + '</div>'
     + '<div id="gpsout"><p class="hint" style="margin-top:8px">立ち止まってタップしてください。'
     + 'そのあとは画面を消してポケットに入れてかまいません。ボールの地点でもう一度画面をつけて②を押します。'
@@ -1904,7 +1907,7 @@ function viewGps(){
 
   /* ① 記録するホール（スコア入力で選んでいるホール）／② 何打目 */
   if(r){
-    out += '<div class="two tight" id="m-sel">' + holeShotStepHtml(r, idx) + '</div>';
+    out += '<div class="selrow" id="m-sel">' + holeShotStepHtml(r, idx) + '</div>';
   } else {
     out += '<p class="hint">「スコア入力」タブでラウンドを開くと、計測した距離がそのホールに記録されます。</p>';
   }
