@@ -388,11 +388,11 @@ var TEE_RESULTS_P3 = [
 
 /* ④ 目標レベル */
 var GOALS = {
-  "100": {label:"100切り", score:100, fw:40, parOn:10, bogeyOn:55, putts:36, ob:2.0,
+  "100": {label:"100切り", score:100, fw:50, parOn:10, bogeyOn:55, putts:36, ob:2.0,
           focus:"ダブルボギー以上を減らすこと"},
-  "90":  {label:"90切り",  score:90,  fw:55, parOn:20, bogeyOn:70, putts:33, ob:1.0,
+  "90":  {label:"90切り",  score:90,  fw:60, parOn:20, bogeyOn:70, putts:33, ob:1.0,
           focus:"ボギーオンを確実にし、3パットをなくすこと"},
-  "80":  {label:"80切り",  score:80,  fw:65, parOn:40, bogeyOn:85, putts:30, ob:0.5,
+  "80":  {label:"80切り",  score:80,  fw:70, parOn:40, bogeyOn:85, putts:30, ob:0.5,
           focus:"パーオン率を上げ、寄せワンの確率を高めること"}
 };
 function goal(){ return GOALS[state.settings.goal] || GOALS["90"]; }
